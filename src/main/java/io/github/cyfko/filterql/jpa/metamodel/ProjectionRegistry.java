@@ -1,13 +1,11 @@
 package io.github.cyfko.filterql.jpa.metamodel;
 
-import io.github.cyfko.filterql.jpa.metamodel.annotations.Computer;
 import io.github.cyfko.filterql.jpa.metamodel.model.CollectionMetadata;
 import io.github.cyfko.filterql.jpa.metamodel.model.PersistenceMetadata;
 import io.github.cyfko.filterql.jpa.metamodel.model.projection.ComputationProvider;
 import io.github.cyfko.filterql.jpa.metamodel.model.projection.ComputedField;
 import io.github.cyfko.filterql.jpa.metamodel.model.projection.DirectMapping;
 import io.github.cyfko.filterql.jpa.metamodel.model.projection.ProjectionMetadata;
-import io.github.cyfko.filterql.jpa.metamodel.providers.PersistenceMetadataRegistryProvider;
 import io.github.cyfko.filterql.jpa.metamodel.providers.ProjectionMetadataRegistryProvider;
 
 import java.lang.reflect.InvocationTargetException;
@@ -209,7 +207,7 @@ public final class ProjectionRegistry {
     /**
      * Converts a DTO projection field path to the corresponding entity field path.
      * <p>
-     * This method resolves nested and comma-separated projection paths recursively, considering both computed
+     * This method resolves projection paths recursively, considering both computed
      * fields and direct entity field mappings defined in the projection metadata.
      * </p>
      * <p>
@@ -226,16 +224,29 @@ public final class ProjectionRegistry {
      * <pre>
      * {@code
      * // Given the following DTO projection classes and mappings:
-     * //
-     * // UserDTO {
-     * //     String name;
-     * //     AddressDTO address;
-     * // }
-     * //
-     * // AddressDTO {
-     * //     String city;
-     * //     String street;
-     * // }
+     * @Projection(User.class)
+     * UserDTO {
+     *     @Projected(from = "username")
+     *     String name;
+     *
+     *     @Projected
+     *     AddressDTO address;
+     * }
+     *
+     * @Projection(
+     *      entity = Address.class,
+     *      computers = @Computer(GeographyUtils.class)
+     * )
+     * AddressDTO {
+     *      @Projected(from = "cityName")
+     *      String city;
+     *
+     *      @Projected(from = "streetName")
+     *      String street;
+     *
+     *      @Computed(dependsOn = {"cityName", "streetName"})
+     *      String geographicZone;
+     * }
      *
      * // Assume the projection metadata maps:
      * // 'name' -> 'username'
@@ -249,8 +260,8 @@ public final class ProjectionRegistry {
      * String entityPath2 = ProjectionRegistry.toEntityPath("address.city", UserDTO.class, false);
      * // Returns "address.cityName"
      *
-     * String entityPath3 = ProjectionRegistry.toEntityPath("address.city,street", UserDTO.class, false);
-     * // Returns "address.cityName,streetName"
+     * String entityPath3 = ProjectionRegistry.toEntityPath("address.geographicZone", UserDTO.class, false);
+     * // Returns "address.cityName,address.streetName"
      * }
      * </pre>
      */
@@ -300,23 +311,28 @@ public final class ProjectionRegistry {
             final ProjectionMetadata metadata = ProjectionRegistry.getMetadataFor(dtoClass);
 
             int dotIndex = dtoProjectionPath.indexOf('.');
-            int commaIndex = -1;
-
-            final String dtoField;
-            if (dotIndex == -1) {
-                commaIndex = dtoProjectionPath.indexOf(',');
-                dtoField = commaIndex == -1 ? dtoProjectionPath : dtoProjectionPath.substring(0, commaIndex);
-            } else {
-                dtoField = dtoProjectionPath.substring(0, dotIndex);
-            }
+            final String dtoField = dotIndex == -1 ? dtoProjectionPath : dtoProjectionPath.substring(0, dotIndex);
 
             // Check whether it is a computed field
             final Optional<ComputedField> computedField = metadata.getComputedField(dtoField, ignoreCase);
             if (computedField.isPresent()) {
-                if (entityPath.length() != 0) {
-                    throw new IllegalArgumentException("Invalid field path: computed field must be top-level only: " + dtoField);
+                String[] dependencies = computedField.get().dependencies();
+                String prefix = entityPath.toString();
+
+                // use previous entityPath as a prefix for each dependency
+                if (!prefix.isEmpty()) {
+                    entityPath.append(".");
                 }
-                entityPath.append(String.join(".", computedField.get().dependencies()));
+                entityPath.append(dependencies[0]);
+
+                for (int i = 1; i < dependencies.length; i++) {
+                    entityPath.append(",");
+                    if (!prefix.isEmpty()) {
+                        entityPath.append(prefix).append(".");
+                    }
+                    entityPath.append(dependencies[i]);
+                }
+
                 return;
             }
 
@@ -333,12 +349,7 @@ public final class ProjectionRegistry {
 
             // Recurse on remaining path (if any)
             if (dotIndex == -1) {
-                if (commaIndex == -1) return; // No remaining field to process, end recursion
-
-                // Comma separation means more fields on the same dtoClass level
-                entityPath.append(",");
-                dotIndex = commaIndex;
-                nextDtoClass = dtoClass;
+                return; // No remaining field to process, end recursion
             } else {
                 entityPath.append(".");
             }
@@ -348,4 +359,5 @@ public final class ProjectionRegistry {
             throw new IllegalArgumentException("\"" + dtoProjectionPath + "\" does not resolve to a valid projection field path.", e);
         }
     }
+
 }
