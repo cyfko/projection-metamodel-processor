@@ -33,7 +33,7 @@ class ProjectionValidationTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(entity = User.class)
             public class UserDTO {
@@ -72,7 +72,7 @@ class ProjectionValidationTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(entity = User.class)
             public class UserDTO {
@@ -111,7 +111,7 @@ class ProjectionValidationTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class
@@ -137,7 +137,7 @@ class ProjectionValidationTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(entity = NonExistentEntity.class)
             public class UserDTO {
@@ -191,7 +191,7 @@ class ProjectionValidationTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(entity = User.class)
             public class UserDTO {

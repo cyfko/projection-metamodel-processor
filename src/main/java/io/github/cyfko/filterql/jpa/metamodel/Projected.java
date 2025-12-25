@@ -1,4 +1,4 @@
-package io.github.cyfko.filterql.jpa.metamodel.annotations;
+package io.github.cyfko.filterql.jpa.metamodel;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -153,6 +153,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.FIELD)
 public @interface Projected {
+
     /**
      * The path to the source field in the JPA entity.
      *

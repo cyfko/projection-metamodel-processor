@@ -1,6 +1,6 @@
 package io.github.cyfko.filterql.jpa.metamodel.processor;
 
-import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+import io.github.cyfko.filterql.jpa.metamodel.Projection;
 import io.github.cyfko.filterql.jpa.metamodel.model.*;
 import io.github.cyfko.filterql.jpa.metamodel.model.projection.*;
 import io.github.cyfko.filterql.jpa.metamodel.utils.ProjectionUtils;
@@ -35,7 +35,7 @@ public class ProjectionProcessor {
     }
 
     /**
-     * Processes all {@link io.github.cyfko.filterql.jpa.metamodel.annotations.Projection}
+     * Processes all {@link Projection}
      * annotated classes discovered in the current round. 
      * <p>
      * For each DTO:
@@ -158,7 +158,7 @@ public class ProjectionProcessor {
 
         // Process computation providers
         ProcessorUtils.processExplicitFields(dtoClass,
-                "io.github.cyfko.filterql.jpa.metamodel.annotations.Projection",
+                "io.github.cyfko.filterql.jpa.metamodel.Projection",
                 params -> {
                     @SuppressWarnings("unchecked") List<Map<String,Object>> computersList = (List<Map<String,Object>>) params.get("computers");
                     if (computersList == null) return;
@@ -177,7 +177,7 @@ public class ProjectionProcessor {
 
             // Process direct mappings
             ProcessorUtils.processExplicitFields(enclosedElement,
-                    "io.github.cyfko.filterql.jpa.metamodel.annotations.Projected",
+                    "io.github.cyfko.filterql.jpa.metamodel.Projected",
                     params -> {
 
                         String dtoField = enclosedElement.getSimpleName().toString();
@@ -215,7 +215,7 @@ public class ProjectionProcessor {
 
             // Process computed fields
             ProcessorUtils.processExplicitFields(enclosedElement,
-                    "io.github.cyfko.filterql.jpa.metamodel.annotations.Computed",
+                    "io.github.cyfko.filterql.jpa.metamodel.Computed",
                     params -> {
                         String dtoField = enclosedElement.getSimpleName().toString();
                         @SuppressWarnings("unchecked") List<String> dependencies = (List<String>) params.get("dependsOn");
@@ -471,7 +471,7 @@ public class ProjectionProcessor {
     private TypeMirror getEntityClass(TypeElement dtoClass) {
         for (AnnotationMirror mirror : dtoClass.getAnnotationMirrors()) {
             if (!mirror.getAnnotationType().toString()
-                    .equals("io.github.cyfko.filterql.jpa.metamodel.annotations.Projection")) {
+                    .equals("io.github.cyfko.filterql.jpa.metamodel.Projection")) {
                 continue;
             }
 

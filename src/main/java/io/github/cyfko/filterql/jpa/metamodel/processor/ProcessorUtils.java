@@ -151,7 +151,7 @@ class ProcessorUtils {
      * <pre>{@code
      * ProcessorUtils.processExplicitFields(
      *     element,
-     *     "io.github.cyfko.filterql.jpa.metamodel.annotations.Projected",
+     *     "io.github.cyfko.filterql.jpa.metamodel.Projected",
      *     fields -> {
      *         String from = (String) fields.get("from");
      *         // handle explicit mapping

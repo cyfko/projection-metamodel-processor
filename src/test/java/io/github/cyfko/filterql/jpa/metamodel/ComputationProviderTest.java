@@ -115,7 +115,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -144,7 +144,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(entity = User.class)
             public class UserDTO {
@@ -186,7 +186,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -229,7 +229,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -274,7 +274,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -318,7 +318,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -363,7 +363,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -407,7 +407,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -451,7 +451,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -497,7 +497,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -540,7 +540,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -582,7 +582,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -641,7 +641,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -701,7 +701,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -748,7 +748,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -790,7 +790,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -832,7 +832,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -874,7 +874,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.ProductDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             import java.math.BigDecimal;
             
             @Projection(
@@ -923,7 +923,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -981,7 +981,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -1030,7 +1030,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -1072,7 +1072,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.ProductDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             import java.math.BigDecimal;
             
             @Projection(
@@ -1115,7 +1115,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.OrderDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             import java.time.LocalDateTime;
             
             @Projection(
@@ -1146,7 +1146,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(entity = User.class)
             public class UserDTO {
@@ -1174,7 +1174,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -1218,7 +1218,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,
@@ -1272,7 +1272,7 @@ class ComputationProviderTest {
             "io.github.cyfko.example.UserDTO",
             """
             package io.github.cyfko.example;
-            import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+            import io.github.cyfko.filterql.jpa.metamodel.*;
             
             @Projection(
                 entity = User.class,

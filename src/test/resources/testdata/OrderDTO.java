@@ -1,10 +1,9 @@
 package io.github.cyfko.example;
 
-import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
-import jakarta.persistence.OneToMany;
+import io.github.cyfko.filterql.jpa.metamodel.Projected;
+import io.github.cyfko.filterql.jpa.metamodel.Projection;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Projection(entity = Order.class)
 public class OrderDTO {

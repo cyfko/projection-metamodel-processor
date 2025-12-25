@@ -1,7 +1,7 @@
 package io.github.cyfko.filterql.jpa.metamodel.processor;
 
 import com.google.auto.service.AutoService;
-import io.github.cyfko.filterql.jpa.metamodel.annotations.Projection;
+import io.github.cyfko.filterql.jpa.metamodel.Projection;
 import jakarta.persistence.Entity;
 
 import javax.annotation.processing.*;
@@ -26,7 +26,7 @@ import java.util.Set;
 @AutoService(Processor.class)
 @SupportedAnnotationTypes({
     "jakarta.persistence.Entity",
-    "io.github.cyfko.filterql.jpa.metamodel.annotations.Projection"
+    "io.github.cyfko.filterql.jpa.metamodel.Projection"
 })
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class MetamodelProcessor extends AbstractProcessor {

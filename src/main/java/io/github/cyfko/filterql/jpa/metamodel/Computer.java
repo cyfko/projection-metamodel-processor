@@ -1,4 +1,4 @@
-package io.github.cyfko.filterql.jpa.metamodel.annotations;
+package io.github.cyfko.filterql.jpa.metamodel;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

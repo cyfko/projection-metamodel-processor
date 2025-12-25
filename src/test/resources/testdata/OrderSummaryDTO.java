@@ -1,6 +1,10 @@
 package io.github.cyfko.example;
 
-import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
+import io.github.cyfko.filterql.jpa.metamodel.Computed;
+import io.github.cyfko.filterql.jpa.metamodel.Computer;
+import io.github.cyfko.filterql.jpa.metamodel.Projected;
+import io.github.cyfko.filterql.jpa.metamodel.Projection;
+
 import java.math.BigDecimal;
 
 @Projection(
