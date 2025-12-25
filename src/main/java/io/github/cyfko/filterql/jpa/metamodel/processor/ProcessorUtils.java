@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * @author  Frank KOSSI
  * @since   1.0.0
  */
-public class ProcessorUtils {
+class ProcessorUtils {
 
     /**
      * Set of basic JPA types considered scalar (not entities or embeddables).
@@ -248,18 +248,5 @@ public class ProcessorUtils {
                 return o;
             }
         }, null);
-    }
-
-    /**
-     * Capitalizes the first character of the given string, leaving the rest unchanged.
-     *
-     * @param str the input string, possibly {@code null} or empty
-     * @return the capitalized string, or the original value if {@code null} or empty
-     */
-    public static String capitalize(String str) {
-        if (str == null || str.isEmpty()) {
-            return str;
-        }
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 }

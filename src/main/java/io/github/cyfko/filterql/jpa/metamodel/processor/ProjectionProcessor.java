@@ -3,6 +3,7 @@ package io.github.cyfko.filterql.jpa.metamodel.processor;
 import io.github.cyfko.filterql.jpa.metamodel.annotations.*;
 import io.github.cyfko.filterql.jpa.metamodel.model.*;
 import io.github.cyfko.filterql.jpa.metamodel.model.projection.*;
+import io.github.cyfko.filterql.jpa.metamodel.utils.ProjectionUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.element.*;
@@ -293,7 +294,7 @@ public class ProjectionProcessor {
 
         String expectedMethodSignature = String.format("public %s get%s(%s);",
                 enclosedElement.asType().toString(),
-                ProcessorUtils.capitalize(field.dtoField()),
+                ProjectionUtils.capitalize(field.dtoField()),
                 String.join(", ", Arrays.stream(field.dependencies())
                         .map(d -> depsToFqcnMapping.get(d) + " " + getLastSegment(d,"\\."))
                         .toList())
@@ -348,7 +349,7 @@ public class ProjectionProcessor {
         Elements elements = processingEnv.getElementUtils();
         Types types = processingEnv.getTypeUtils();
 
-        final String methodName = "get" + ProcessorUtils.capitalize(field.dtoField());
+        final String methodName = "get" + ProjectionUtils.capitalize(field.dtoField());
 
         for (SimpleComputationProvider provider : computers) {
             TypeElement providerElement = elements.getTypeElement(provider.className());
