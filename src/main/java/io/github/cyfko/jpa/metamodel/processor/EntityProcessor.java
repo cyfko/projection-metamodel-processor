@@ -1,10 +1,10 @@
 package io.github.cyfko.jpa.metamodel.processor;
 
-import io.github.cyfko.jpa.metamodel.model.*;
 import io.github.cyfko.jpa.metamodel.model.CollectionKind;
 import io.github.cyfko.jpa.metamodel.model.CollectionMetadata;
 import io.github.cyfko.jpa.metamodel.model.CollectionType;
 import io.github.cyfko.jpa.metamodel.model.PersistenceMetadata;
+import io.github.cyfko.jpa.metamodel.util.AnnotationProcessorUtils;
 import jakarta.persistence.Entity;
 
 import javax.annotation.processing.*;
@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.*;
 
-import static io.github.cyfko.jpa.metamodel.processor.ProcessorUtils.BASIC_JPA_TYPES;
+import static io.github.cyfko.jpa.metamodel.util.AnnotationProcessorUtils.BASIC_JPA_TYPES;
 
 /**
  * Processor responsible for scanning JPA entities and embeddables during annotation processing
@@ -115,7 +115,7 @@ public class EntityProcessor {
                 // Try to load the type and check if it's an embeddable
                 TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(relatedType);
 
-                if (typeElement != null && ProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
+                if (typeElement != null && AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
                     messager.printMessage(Diagnostic.Kind.NOTE,
                             "📎 Analysing referenced embeddable: " + relatedType);
 
@@ -200,7 +200,7 @@ public class EntityProcessor {
         long entityCount = collectedRegistry.keySet().stream()
                 .filter(fqcn -> {
                     TypeElement te = processingEnv.getElementUtils().getTypeElement(fqcn);
-                    return te != null && ProcessorUtils.hasAnnotation(te, "jakarta.persistence.Entity");
+                    return te != null && AnnotationProcessorUtils.hasAnnotation(te, "jakarta.persistence.Entity");
                 })
                 .count();
         long embeddableCount = collectedRegistry.size() - entityCount;
@@ -423,7 +423,7 @@ public class EntityProcessor {
                 VariableElement field = (VariableElement) enclosed;
                 String name = field.getSimpleName().toString();
                 if (result.containsKey(name)) continue;
-                if (ProcessorUtils.hasAnnotation(field, "jakarta.persistence.Transient")) continue;
+                if (AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Transient")) continue;
 
                 SimplePersistenceMetadata metadata = analyzeField(field, messager);
                 result.put(name, metadata);
@@ -435,12 +435,12 @@ public class EntityProcessor {
         }
 
         // Only warn about missing @Id for actual entities, not embeddables
-        if (ProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.Entity")) {
+        if (AnnotationProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.Entity")) {
             long idCount = result.values().stream().filter(SimplePersistenceMetadata::isId).count();
             if (idCount == 0) {
                 messager.printMessage(Diagnostic.Kind.WARNING,
                         "⚠️ No @Id field found in " + rootEntity.getQualifiedName(), rootEntity);
-            } else if (idCount > 1 && !ProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.IdClass")) {
+            } else if (idCount > 1 && !AnnotationProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.IdClass")) {
                 messager.printMessage(Diagnostic.Kind.WARNING,
                         "⚠️ " + rootEntity.getQualifiedName() + " is not annotated with @jakarta.persistence.IdClass but multiple @Id fields detected", rootEntity);
             }
@@ -470,11 +470,11 @@ public class EntityProcessor {
      * @return the corresponding {@link SimplePersistenceMetadata} instance
      */
     private SimplePersistenceMetadata analyzeField(VariableElement field, Messager messager) {
-        boolean isId = ProcessorUtils.hasAnnotation(field, "jakarta.persistence.Id");
-        boolean isEmbeddedId = ProcessorUtils.hasAnnotation(field, "jakarta.persistence.EmbeddedId");
+        boolean isId = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Id");
+        boolean isEmbeddedId = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.EmbeddedId");
         boolean isCollection = isCollection(field.asType());
-        boolean isElementCollection = ProcessorUtils.hasAnnotation(field, "jakarta.persistence.ElementCollection");
-        boolean isEmbedded = ProcessorUtils.hasAnnotation(field, "jakarta.persistence.Embedded");
+        boolean isElementCollection = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.ElementCollection");
+        boolean isEmbedded = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Embedded");
 
         String relatedType = resolveRelatedType(field, isElementCollection, messager);
         String mappedIdField = extractMappedId(field);
@@ -523,8 +523,8 @@ public class EntityProcessor {
      * @return a {@link CollectionMetadata} describing the collection
      */
     private CollectionMetadata analyzeCollection(VariableElement field, String elementType, Messager messager) {
-        CollectionKind kind = ProcessorUtils.determineCollectionKind(elementType, processingEnv);
-        CollectionType collectionType = ProcessorUtils.determineCollectionType(field.asType());
+        CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(elementType, processingEnv);
+        CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(field.asType());
         Optional<String> mappedBy = extractMappedBy(field);
         Optional<String> orderBy = extractOrderBy(field);
 
@@ -601,7 +601,7 @@ public class EntityProcessor {
     private boolean isEmbeddableType(String typeName) {
         if (typeName == null) return false;
         TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(typeName);
-        return typeElement != null && ProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable");
+        return typeElement != null && AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable");
     }
 
     /**
@@ -651,7 +651,7 @@ public class EntityProcessor {
                 String annType = ann.getAnnotationType().toString();
                 if (annType.startsWith("jakarta.persistence.OneTo") ||
                         annType.startsWith("jakarta.persistence.ManyTo")) {
-                    if (! ProcessorUtils.hasAnnotation(target, "jakarta.persistence.Entity")) {
+                    if (! AnnotationProcessorUtils.hasAnnotation(target, "jakarta.persistence.Entity")) {
                         messager.printMessage(Diagnostic.Kind.WARNING,
                                 "⚠️ Relation to non-@Entity class: " + target, field);
                     }
@@ -659,7 +659,7 @@ public class EntityProcessor {
                 }
             }
 
-            if (ProcessorUtils.hasAnnotation(field, "jakarta.persistence.Embedded")) {
+            if (AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Embedded")) {
                 return target.toString();
             }
         }

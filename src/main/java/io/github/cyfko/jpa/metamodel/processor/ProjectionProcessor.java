@@ -1,10 +1,13 @@
 package io.github.cyfko.jpa.metamodel.processor;
 
+import io.github.cyfko.jpa.metamodel.Computed;
+import io.github.cyfko.jpa.metamodel.Projected;
 import io.github.cyfko.jpa.metamodel.Projection;
 import io.github.cyfko.jpa.metamodel.model.CollectionKind;
 import io.github.cyfko.jpa.metamodel.model.CollectionType;
 import io.github.cyfko.jpa.metamodel.model.projection.ComputedField;
 import io.github.cyfko.jpa.metamodel.model.projection.DirectMapping;
+import io.github.cyfko.jpa.metamodel.util.AnnotationProcessorUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.element.*;
@@ -19,7 +22,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static io.github.cyfko.jpa.metamodel.processor.ProcessorUtils.BASIC_JPA_TYPES;
+import static io.github.cyfko.jpa.metamodel.util.AnnotationProcessorUtils.BASIC_JPA_TYPES;
 
 /**
  * Processor for @Projection annotated DTOs that generates projection metadata.
@@ -158,8 +161,8 @@ public class ProjectionProcessor {
         List<SimpleComputationProvider> computers = new ArrayList<>();
 
         // Process computation providers
-        ProcessorUtils.processExplicitFields(dtoClass,
-                "io.github.cyfko.jpa.metamodel.Projection",
+        AnnotationProcessorUtils.processExplicitFields(dtoClass,
+                 Projection.class.getName(),
                 params -> {
                     @SuppressWarnings("unchecked") List<Map<String,Object>> computersList = (List<Map<String,Object>>) params.get("providers");
                     if (computersList == null) return;
@@ -177,8 +180,8 @@ public class ProjectionProcessor {
             if (enclosedElement.getKind() != ElementKind.FIELD) continue;
 
             // Process direct mappings
-            ProcessorUtils.processExplicitFields(enclosedElement,
-                    "io.github.cyfko.jpa.metamodel.Projected",
+            AnnotationProcessorUtils.processExplicitFields(enclosedElement,
+                    Projected.class.getName(),
                     params -> {
 
                         String dtoField = enclosedElement.getSimpleName().toString();
@@ -215,8 +218,8 @@ public class ProjectionProcessor {
             );
 
             // Process computed fields
-            ProcessorUtils.processExplicitFields(enclosedElement,
-                    "io.github.cyfko.jpa.metamodel.Computed",
+            AnnotationProcessorUtils.processExplicitFields(enclosedElement,
+                    Computed.class.getName(),
                     params -> {
                         String dtoField = enclosedElement.getSimpleName().toString();
                         @SuppressWarnings("unchecked") List<String> dependencies = (List<String>) params.get("dependsOn");
@@ -456,8 +459,8 @@ public class ProjectionProcessor {
      * @return collection metadata describing the kind (scalar, entity, embeddable) and collection type
      */
     private DirectMapping.CollectionMetadata analyzeCollection(VariableElement field, String elementType) {
-        CollectionKind kind = ProcessorUtils.determineCollectionKind(elementType, processingEnv);
-        CollectionType collectionType = ProcessorUtils.determineCollectionType(field.asType());
+        CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(elementType, processingEnv);
+        CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(field.asType());
 
         return new DirectMapping.CollectionMetadata(kind, collectionType);
     }

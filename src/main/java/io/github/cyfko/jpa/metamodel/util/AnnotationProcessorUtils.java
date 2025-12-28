@@ -1,4 +1,4 @@
-package io.github.cyfko.jpa.metamodel.processor;
+package io.github.cyfko.jpa.metamodel.util;
 
 
 import io.github.cyfko.jpa.metamodel.model.CollectionKind;
@@ -27,7 +27,7 @@ import java.util.function.Consumer;
  * @author  Frank KOSSI
  * @since   1.0.0
  */
-class ProcessorUtils {
+public class AnnotationProcessorUtils {
 
     /**
      * Set of basic JPA types considered scalar (not entities or embeddables).
