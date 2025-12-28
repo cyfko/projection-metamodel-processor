@@ -136,40 +136,40 @@ public class UserComputations {
 #### Access Entity Metadata
 
 ```java
-import io.github.cyfko.filterql.jpa.metamodel.PersistenceRegistry;
+import io.github.cyfko.jpa.metamodel.PersistenceRegistry;
 
 // Check if an entity is registered
 boolean isRegistered = PersistenceRegistry.isEntityRegistered(User.class);
 
-// Get metadata for an entity
-Map<String, PersistenceMetadata> metadata = PersistenceRegistry.getMetadataFor(User.class);
+        // Get metadata for an entity
+        Map<String, PersistenceMetadata> metadata = PersistenceRegistry.getMetadataFor(User.class);
 
-// Get metadata for a specific field
-PersistenceMetadata fieldMeta = PersistenceRegistry.getFieldMetadata(User.class, "email");
+        // Get metadata for a specific field
+        PersistenceMetadata fieldMeta = PersistenceRegistry.getFieldMetadata(User.class, "email");
 
-// Get ID fields of an entity
-List<String> idFields = PersistenceRegistry.getIdFields(User.class);
+        // Get ID fields of an entity
+        List<String> idFields = PersistenceRegistry.getIdFields(User.class);
 ```
 
 #### Access Projection Metadata
 
 ```java
-import io.github.cyfko.filterql.jpa.metamodel.ProjectionRegistry;
+import io.github.cyfko.jpa.metamodel.ProjectionRegistry;
 
 // Get metadata for a projection
 ProjectionMetadata projectionMeta = ProjectionRegistry.getMetadataFor(UserDTO.class);
 
-// Check if a projection exists
-boolean hasProjection = ProjectionRegistry.hasProjection(UserDTO.class);
+        // Check if a projection exists
+        boolean hasProjection = ProjectionRegistry.hasProjection(UserDTO.class);
 
-// Get required entity fields for a projection
-List<String> requiredFields = ProjectionRegistry.getRequiredEntityFields(UserDTO.class);
+        // Get required entity fields for a projection
+        List<String> requiredFields = ProjectionRegistry.getRequiredEntityFields(UserDTO.class);
 
-// Convert a DTO path to an entity path
-String entityPath = ProjectionRegistry.toEntityPath("userEmail", UserDTO.class, false);
+        // Convert a DTO path to an entity path
+        String entityPath = ProjectionRegistry.toEntityPath("userEmail", UserDTO.class, false);
 // Returns: "email"
 
-String nestedPath = ProjectionRegistry.toEntityPath("city", UserDTO.class, false);
+        String nestedPath = ProjectionRegistry.toEntityPath("city", UserDTO.class, false);
 // Returns: "address.city"
 ```
 
