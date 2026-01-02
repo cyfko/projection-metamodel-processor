@@ -184,22 +184,14 @@ public class ProjectionProcessor {
                     enclosedElement,
                     Projected.class.getName(),
                     params -> {
-
-                        String dtoField = enclosedElement.getSimpleName().toString();
-                        String entityField;
-                        if (params.containsKey("from")) {
-                            entityField = params.get("from").toString();
-                        } else {
-                            entityField = dtoField;
-                        }
-
                         // validate entity field path
-                        insertDirectMapping(enclosedElement, entityClassName, entityField, directMappings, dtoField);
+                        String entityField = params.get("from").toString();
+                        insertDirectMapping((VariableElement) enclosedElement, entityClassName, entityField, directMappings);
                     },
                     () -> {
                         // Automatically consider this field if it is not a @Computed field
                         if (enclosedElement.getAnnotation(Computed.class) != null) return;
-                        insertDirectMapping(enclosedElement, entityClassName, enclosedElement.toString(), directMappings, enclosedElement.toString());
+                        insertDirectMapping((VariableElement) enclosedElement, entityClassName, enclosedElement.toString(), directMappings);
                     }
             );
 
@@ -255,25 +247,36 @@ public class ProjectionProcessor {
         projectionRegistry.put(dtoClass.getQualifiedName().toString(), metadata);
     }
 
-    private void insertDirectMapping(Element enclosedElement, String entityClassName, String entityField, List<SimpleDirectMapping> directMappings, String dtoField) {
+    private void insertDirectMapping(VariableElement dtoField, String entityClassName, String entityField, List<SimpleDirectMapping> directMappings) {
         Messager messager = this.processingEnv.getMessager();
 
-        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, null);
+        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, entityFieldFqcn -> {
+            if (! entityFieldFqcn.equals(dtoField.asType().toString())) {
+//                messager.printMessage(
+//                        Diagnostic.Kind.ERROR,
+//                        String.format("Projection has incompatible type on field <%s>. Required: %s, Found: %s.",
+//                                dtoField,
+//                                entityFieldFqcn,
+//                                dtoField.asType().toString()
+//                        )
+//                );
+            }
+        });
+
         if (!validation.isValid()) {
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    validation.errorMessage(), enclosedElement);
+                    validation.errorMessage(), dtoField);
             return;
         }
 
-        VariableElement field = (VariableElement) enclosedElement;
-        boolean isCollection = isCollection(field.asType());
-        String itemType = resolveRelatedType(field, isCollection, messager);
+        boolean isCollection = isCollection(dtoField.asType());
+        String itemType = resolveRelatedType(dtoField, isCollection, messager);
 
         if (isCollection) {
-            DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(field, itemType);
-            directMappings.add(new SimpleDirectMapping(dtoField, entityField, itemType, Optional.of(collectionMetadata)));
+            DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(dtoField, itemType);
+            directMappings.add(new SimpleDirectMapping(dtoField.toString(), entityField, itemType, Optional.of(collectionMetadata)));
         } else {
-            directMappings.add(new SimpleDirectMapping(dtoField, entityField, field.asType().toString(), Optional.empty()));
+            directMappings.add(new SimpleDirectMapping(dtoField.toString(), entityField, dtoField.asType().toString(), Optional.empty()));
         }
 
         messager.printMessage(Diagnostic.Kind.NOTE,

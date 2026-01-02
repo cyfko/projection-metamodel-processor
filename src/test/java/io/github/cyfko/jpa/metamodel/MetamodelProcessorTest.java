@@ -138,7 +138,7 @@ class MetamodelProcessorTest {
         assertTrue(generatedCode.contains("city"));
         assertTrue(generatedCode.contains("address.city"));
         assertTrue(generatedCode.contains("java.lang.String.class"));
-        assertTrue(generatedCode.contains("long.class"));
+        assertTrue(generatedCode.contains("Long.class"));
         assertTrue(generatedCode.contains("io.github.cyfko.example.User.class"));
         assertTrue(generatedCode.contains("io.github.cyfko.example.UserDTO.class"));
         assertTrue(generatedCode.contains("io.github.cyfko.example.Order.class"));

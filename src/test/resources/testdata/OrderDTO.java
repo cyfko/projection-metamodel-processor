@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @Projection(entity = Order.class)
 public class OrderDTO {
 
-    private long id;
+    private Long id;
 
     private String orderNumber;
 
