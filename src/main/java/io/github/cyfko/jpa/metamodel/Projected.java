@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  * <h2>Mapping Behavior</h2>
  *
  * <h3>Automatic Name Matching</h3>
- * <p>When {@link #from()} is not specified (empty string), the system assumes the DTO
+ * <p>When {@link Projected} is not specified, the system assumes the DTO
  * field name exactly matches the entity field name:</p>
  * <pre>{@code
  * @Entity
@@ -26,16 +26,16 @@ import java.lang.annotation.Target;
  *
  * @Projection(entity = User.class)
  * public class UserDTO {
- *     @Projected  // Maps to User.email (same name)
+ *     // Maps to User.email (same name)
  *     private String email;
  *
- *     @Projected  // Maps to User.phoneNumber (same name)
+ *     // Maps to User.phoneNumber (same name)
  *     private String phoneNumber;
  * }
  * }</pre>
  *
  * <h3>Explicit Field Mapping</h3>
- * <p>When {@link #from()} is specified, the DTO field is mapped from the explicitly
+ * <p>When {@code @Projected} is specified, the DTO field is mapped {@link #from()} the explicitly
  * named entity field, enabling field renaming:</p>
  * <pre>{@code
  * @Projection(entity = User.class)
@@ -161,7 +161,6 @@ public @interface Projected {
      * <ul>
      *   <li><b>Simple field name:</b> {@code "email"} maps to {@code entity.getEmail()}</li>
      *   <li><b>Nested path:</b> {@code "address.city"} maps to {@code entity.getAddress().getCity()}</li>
-     *   <li><b>Empty string (default):</b> Uses the DTO field name as the entity field name</li>
      * </ul>
      *
      * <h3>Path Resolution</h3>
@@ -182,9 +181,8 @@ public @interface Projected {
      *
      * <h3>When to Use vs. Default Behavior</h3>
      * <pre>{@code
-     * // Use default (empty string) when names match
-     * @Projected
-     * private String email;  // Assumes entity also has 'email' field
+     * // Use default (no @Projected) when names match
+     * private String email;  // Assumes entity also has 'email' field.
      *
      * // Specify 'from' when:
      * // 1. Renaming for clarity
@@ -202,5 +200,5 @@ public @interface Projected {
      *
      * @return the entity field path, or empty string to use the DTO field name
      */
-    String from() default "";
+    String from();
 }

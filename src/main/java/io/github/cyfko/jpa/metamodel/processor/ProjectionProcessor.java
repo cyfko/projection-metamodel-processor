@@ -180,7 +180,8 @@ public class ProjectionProcessor {
             if (enclosedElement.getKind() != ElementKind.FIELD) continue;
 
             // Process direct mappings
-            AnnotationProcessorUtils.processExplicitFields(enclosedElement,
+            AnnotationProcessorUtils.processExplicitFields(
+                    enclosedElement,
                     Projected.class.getName(),
                     params -> {
 
@@ -193,28 +194,13 @@ public class ProjectionProcessor {
                         }
 
                         // validate entity field path
-                        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, null);
-                        if (!validation.isValid()) {
-                            messager.printMessage(Diagnostic.Kind.ERROR,
-                                    validation.errorMessage(), enclosedElement);
-                            return;
-                        }
-
-                        VariableElement field = (VariableElement) enclosedElement;
-                        boolean isCollection = isCollection(field.asType());
-                        String itemType = resolveRelatedType(field, isCollection, messager);
-
-                        if (isCollection) {
-                            DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(field, itemType);
-                            directMappings.add(new SimpleDirectMapping(dtoField, entityField, itemType, Optional.of(collectionMetadata)));
-                        } else {
-                            directMappings.add(new SimpleDirectMapping(dtoField, entityField, field.asType().toString(), Optional.empty()));
-                        }
-
-                        messager.printMessage(Diagnostic.Kind.NOTE,
-                                "  ✅ " + dtoField + " → " + entityField);
+                        insertDirectMapping(enclosedElement, entityClassName, entityField, directMappings, dtoField);
                     },
-                    null
+                    () -> {
+                        // Automatically consider this field if it is not a @Computed field
+                        if (enclosedElement.getAnnotation(Computed.class) != null) return;
+                        insertDirectMapping(enclosedElement, entityClassName, enclosedElement.toString(), directMappings, enclosedElement.toString());
+                    }
             );
 
             // Process computed fields
@@ -267,6 +253,31 @@ public class ProjectionProcessor {
         );
 
         projectionRegistry.put(dtoClass.getQualifiedName().toString(), metadata);
+    }
+
+    private void insertDirectMapping(Element enclosedElement, String entityClassName, String entityField, List<SimpleDirectMapping> directMappings, String dtoField) {
+        Messager messager = this.processingEnv.getMessager();
+
+        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, null);
+        if (!validation.isValid()) {
+            messager.printMessage(Diagnostic.Kind.ERROR,
+                    validation.errorMessage(), enclosedElement);
+            return;
+        }
+
+        VariableElement field = (VariableElement) enclosedElement;
+        boolean isCollection = isCollection(field.asType());
+        String itemType = resolveRelatedType(field, isCollection, messager);
+
+        if (isCollection) {
+            DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(field, itemType);
+            directMappings.add(new SimpleDirectMapping(dtoField, entityField, itemType, Optional.of(collectionMetadata)));
+        } else {
+            directMappings.add(new SimpleDirectMapping(dtoField, entityField, field.asType().toString(), Optional.empty()));
+        }
+
+        messager.printMessage(Diagnostic.Kind.NOTE,
+                "  ✅ " + dtoField + " → " + entityField);
     }
 
     /**
