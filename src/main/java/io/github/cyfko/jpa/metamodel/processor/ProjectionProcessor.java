@@ -466,15 +466,18 @@ public class ProjectionProcessor {
      */
     private TypeMirror getEntityClass(TypeElement dtoClass) {
         for (AnnotationMirror mirror : dtoClass.getAnnotationMirrors()) {
-            if (!mirror.getAnnotationType().toString()
-                    .equals("io.github.cyfko.jpa.metamodel.Projection")) {
+            if (! "io.github.cyfko.jpa.metamodel.Projection".equals(mirror.getAnnotationType().toString())) {
                 continue;
             }
 
             for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                     mirror.getElementValues().entrySet()) {
                 if (entry.getKey().getSimpleName().toString().equals("entity")) {
-                    return (TypeMirror) entry.getValue().getValue();
+                    try {
+                        return (TypeMirror) entry.getValue().getValue();
+                    } catch (ClassCastException e) {
+                        this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
+                    }
                 }
             }
         }

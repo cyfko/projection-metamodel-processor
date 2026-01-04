@@ -2,6 +2,7 @@ package io.github.cyfko.jpa.metamodel.processor;
 
 import com.google.auto.service.AutoService;
 import io.github.cyfko.jpa.metamodel.Projection;
+import io.github.cyfko.jpa.metamodel.util.AnnotationProcessorUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -44,8 +45,7 @@ public class MetamodelProcessor extends AbstractProcessor {
         this.entityProcessor = new EntityProcessor(processingEnv);
         this.projectionProcessor = new ProjectionProcessor(processingEnv, entityProcessor);
         
-        processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE,
-            "🚀 JPA Metamodel Processor initialized");
+        processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "🚀 JPA Metamodel Processor initialized");
     }
 
     @Override
@@ -60,17 +60,13 @@ public class MetamodelProcessor extends AbstractProcessor {
 
             TypeElement dtoClass = (TypeElement) element;
             projectionDtos.add(dtoClass);
-            for (AnnotationMirror mirror : dtoClass.getAnnotationMirrors()) {
-                if (mirror.getAnnotationType().toString().equals("io.github.cyfko.jpa.metamodel.Projection")) {
-                    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : mirror.getElementValues().entrySet()) {
-                        if (entry.getKey().getSimpleName().toString().equals("entity")) {
-                            TypeMirror entityTypeMirror = (TypeMirror) entry.getValue().getValue();
-                            TypeElement entityClass = (TypeElement) ((DeclaredType) entityTypeMirror).asElement();
-                            referencedEntities.add(entityClass.getQualifiedName().toString());
-                        }
-                    }
-                }
-            }
+
+            AnnotationProcessorUtils.processExplicitFields(
+                    dtoClass,
+                    "io.github.cyfko.jpa.metamodel.Projection",
+                    (params) -> referencedEntities.add((String) params.get("entity")),
+                    null
+            );
         }
 
         // ==================== Phase 1 : Traitement des entités nécessaires ====================
