@@ -411,8 +411,7 @@ public class EntityProcessor {
         String className = entityType.getQualifiedName().toString();
 
         if (!entityType.getModifiers().contains(Modifier.PUBLIC)) {
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                    "⏭️ Skipping non-public class: " + className);
+            messager.printMessage(Diagnostic.Kind.NOTE, "⏭️ Skipping non-public class: " + className);
             return true;
         }
 
@@ -420,46 +419,12 @@ public class EntityProcessor {
         if (enclosingElement != null && enclosingElement.getKind() == ElementKind.CLASS) {
             TypeElement enclosingClass = (TypeElement) enclosingElement;
             if (!enclosingClass.getModifiers().contains(Modifier.PUBLIC)) {
-                messager.printMessage(Diagnostic.Kind.NOTE,
-                        "⏭️ Skipping class with non-public enclosing class: " + className);
+                messager.printMessage(Diagnostic.Kind.NOTE, "⏭️ Skipping class with non-public enclosing class: " + className);
                 return true;
             }
         }
 
-        if (isTestClass(entityType)) {
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                    "⏭️ Skipping test class: " + className);
-            return true;
-        }
-
         return false;
-    }
-
-    /**
-     * Heuristic to detect test classes based on package and simple name.
-     *
-     * @param entityType the type element to evaluate
-     * @return {@code true} if the class appears to be a test, {@code false} otherwise
-     */
-    private boolean isTestClass(TypeElement entityType) {
-        String className = entityType.getQualifiedName().toString();
-        String packageName = processingEnv.getElementUtils()
-                .getPackageOf(entityType)
-                .getQualifiedName()
-                .toString();
-
-        boolean inTestPackage = packageName.contains(".test.") ||
-                packageName.endsWith(".test") ||
-                packageName.contains(".tests.") ||
-                packageName.endsWith(".tests");
-
-        boolean testClassName = className.endsWith("Test") ||
-                className.endsWith("Tests") ||
-                className.contains("Test$") ||
-                className.endsWith("IT") ||
-                className.endsWith("IntegrationTest");
-
-        return inTestPackage || testClassName;
     }
 
     /**
