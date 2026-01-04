@@ -9,281 +9,322 @@ import java.lang.annotation.Target;
  * Marks a DTO field as a computed field whose value is derived from one or more
  * entity fields through a computation method.
  *
- * <p>Computed fields are <b>not directly mapped</b> from the entity. Instead, their values
- * are calculated at projection time by invoking a method from a registered {@link Provider}
- * class, using entity field values as inputs.</p>
- *
- * <h2>Core Concepts</h2>
- *
- * <h3>Entity-Centric Dependencies</h3>
- * <p><b>Critical principle:</b> All dependencies declared in {@link #dependsOn()} must
- * reference fields from the source entity specified in {@link Projection#entity()}.
- * Dependencies on other computed fields are <b>not supported</b>.</p>
- *
- * <p>This design choice ensures:</p>
- * <ul>
- *   <li>Deterministic resolution order (no dependency graphs needed)</li>
- *   <li>Independent computation of each field</li>
- *   <li>Simplified code generation logic</li>
- * </ul>
- *
- * <h3>Validation Role</h3>
- * <p>The {@code dependsOn} array serves as both:</p>
- * <ul>
- *   <li><b>Declaration:</b> Documents which entity fields are required</li>
- *   <li><b>Validation:</b> Ensures the matching provider method has parameters of correct types</li>
- * </ul>
- *
  * <h2>Method Resolution</h2>
- * <p>For a field annotated with {@code @Computed}, the system locates a computation method by:</p>
+ * <p>The computation method can be resolved in two ways:</p>
+ *
+ * <h3>1. Convention-based (default)</h3>
+ * <p>By default, the system searches for a method named {@code get[FieldName]}:</p>
+ * <pre>{@code
+ * @Computed(dependsOn = {"firstName", "lastName"})
+ * private String fullName;
+ *
+ * // Automatically looks for: getFullName(String, String)
+ * }</pre>
+ *
+ * <h3>2. Explicit method reference (override)</h3>
+ * <p>Use {@link #computedBy()} to explicitly specify which method to use:</p>
+ * <pre>{@code
+ * @Computed(
+ *   dependsOn = {"firstName", "lastName"},
+ *   computedBy = @MethodReference(method = "buildUserDisplayName")
+ * )
+ * private String fullName;
+ *
+ * // Explicitly uses: buildUserDisplayName(String, String)
+ * }</pre>
+ *
+ * <h3>Resolution Order</h3>
  * <ol>
- *   <li>Searching all {@link Provider} classes in {@link Projection#providers()} order</li>
- *   <li>Looking for a method named {@code get[FieldName]}, where {@code FieldName} is the
- *       capitalized field name (e.g., {@code fullName} → {@code getFullName})</li>
- *   <li>Matching method parameters to the types of {@code dependsOn} fields <b>in order</b></li>
+ *   <li>If {@code computedBy.type()} is specified: search in that specific provider class</li>
+ *   <li>If only {@code computedBy.method()} is specified: search in all providers for that method name</li>
+ *   <li>If {@code computedBy} is not specified: use convention {@code get[FieldName]} in all providers</li>
  * </ol>
  *
- * <h3>Provider Method Requirements</h3>
- * <p>For a provider method to be valid, it must:</p>
- * <ul>
- *   <li><b>Naming:</b> Follow the convention {@code get[FieldName](...)}
- *       <br><i>Example:</i> For field {@code fullName}, method must be {@code getFullName}</li>
- *   <li><b>Parameters:</b> Accept parameters matching {@code dependsOn} types <b>in the same order</b>
- *       <br><i>Example:</i> {@code dependsOn = {"firstName", "lastName"}} requires
- *       {@code (String firstName, String lastName)}</li>
- *   <li><b>Return Type:</b> Return a type compatible with the computed field's type</li>
- *   <li><b>Modifiers:</b> Can be either {@code static} or instance method. The runtime resolver
- *       determines which to use based on bean availability.</li>
- * </ul>
+ * <h2>Use Cases for Method Override</h2>
  *
- * <h3>Runtime Resolution Strategy</h3>
- * <p>At runtime, the resolution process works as follows:</p>
- * <ol>
- *   <li>A mechanism to obtain an instance of {@link Provider} may be implemented given a provider info, typically a
- *   method is invoked with the provider class and bean hint to obtain the desired instance of the provider</li>
- *   <li>If the returned value is {@code null}: the resolution of the targeted method is considered
- *   <b>statically resolved</b> from the {@link Provider#value()} </li>
- *   <li>If the resolver returns an instance: the method is invoked on that <b>instance</b></li>
- * </ol>
+ * <h3>Use Case 1: Avoid Naming Conflicts</h3>
+ * <pre>{@code
+ * public class UserDTO {
+ *   // Two fields need the same source data but different formatting
  *
- * <p><b>Important:</b> The {@link Provider#bean()} parameter is a <b>hint</b> for bean lookup,
- * not a strict requirement. Both static and instance methods can coexist in the same provider class.
- * The runtime resolver decides which approach to use based on IoC container availability.</p>
+ *   @Computed(
+ *     dependsOn = {"firstName", "lastName"},
+ *     computedBy = @MethodReference(method = "formatFullName")
+ *   )
+ *   private String fullName;  // "John Doe"
  *
+ *   @Computed(
+ *     dependsOn = {"firstName", "lastName"},
+ *     computedBy = @MethodReference(method = "formatFullNameReversed")
+ *   )
+ *   private String reversedName;  // "Doe, John"
+ * }
+ *
+ * public class UserComputations {
+ *   public static String formatFullName(String first, String last) {
+ *     return first + " " + last;
+ *   }
+ *
+ *   public static String formatFullNameReversed(String first, String last) {
+ *     return last + ", " + first;
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h3>Use Case 2: Multiple Fields Using Same Computation</h3>
+ * <pre>{@code
+ * public class OrderDTO {
+ *   @Computed(
+ *     dependsOn = {"amount", "currency"},
+ *     computedBy = @MethodReference(method = "convertToUSD")
+ *   )
+ *   private BigDecimal amountInUSD;
+ *
+ *   @Computed(
+ *     dependsOn = {"taxes", "currency"},
+ *     computedBy = @MethodReference(method = "convertToUSD")
+ *   )
+ *   private BigDecimal taxesInUSD;
+ *
+ *   @Computed(
+ *     dependsOn = {"shipping", "currency"},
+ *     computedBy = @MethodReference(method = "convertToUSD")
+ *   )
+ *   private BigDecimal shippingInUSD;
+ * }
+ *
+ * public class CurrencyUtils {
+ *   // Same method reused for different fields!
+ *   public static BigDecimal convertToUSD(BigDecimal amount, String currency) {
+ *     // conversion logic
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h3>Use Case 3: Target Specific Provider</h3>
+ * <pre>{@code
+ * @Projection(
+ *   entity = User.class,
+ *   providers = {
+ *     @Provider(LegacyComputations.class),    // Has getAge() returning String
+ *     @Provider(ModernComputations.class)     // Has getAge() returning Integer
+ *   }
+ * )
+ * public class UserDTO {
+ *   // Without override: might use wrong provider (first match)
+ *   @Computed(dependsOn = {"birthDate"})
+ *   private Integer age;  // Could accidentally use LegacyComputations.getAge()!
+ *
+ *   // With override: explicitly targets the correct provider
+ *   @Computed(
+ *     dependsOn = {"birthDate"},
+ *     computedBy = @MethodReference(
+ *       type = ModernComputations.class,
+ *       method = "getAge"
+ *     )
+ *   )
+ *   private Integer age;  // Guaranteed to use ModernComputations.getAge()
+ * }
+ * }</pre>
+ *
+ * <h3>Use Case 4: Reuse Generic Methods</h3>
+ * <pre>{@code
+ * public class StringUtils {
+ *   public static String uppercase(String input) {
+ *     return input != null ? input.toUpperCase() : null;
+ *   }
+ *
+ *   public static String lowercase(String input) {
+ *     return input != null ? input.toLowerCase() : null;
+ *   }
+ * }
+ *
+ * public class UserDTO {
+ *   @Computed(
+ *     dependsOn = {"username"},
+ *     computedBy = @MethodReference(
+ *       type = StringUtils.class,
+ *       method = "uppercase"
+ *     )
+ *   )
+ *   private String displayName;
+ *
+ *   @Computed(
+ *     dependsOn = {"email"},
+ *     computedBy = @MethodReference(
+ *       type = StringUtils.class,
+ *       method = "lowercase"
+ *     )
+ *   )
+ *   private String normalizedEmail;
+ * }
+ * }</pre>
+ *
+ * <h2>Method Resolution Strategy</h2>
  * <table border="1">
- *   <caption>Runtime Resolution Examples</caption>
+ *   <caption>How the processor finds the computation method</caption>
  *   <tr>
- *     <th>Scenario</th>
- *     <th>Resolver Behavior</th>
- *     <th>Method Invocation</th>
+ *     <th>{@code computedBy} specified?</th>
+ *     <th>{@code type} in computedBy?</th>
+ *     <th>{@code method} in computedBy?</th>
+ *     <th>Resolution Strategy</th>
  *   </tr>
  *   <tr>
- *     <td>IoC available, bean found</td>
- *     <td>Returns bean instance</td>
- *     <td>Instance method on bean</td>
+ *     <td>❌ No</td>
+ *     <td>N/A</td>
+ *     <td>N/A</td>
+ *     <td>Search all providers for {@code get[FieldName](...)}</td>
  *   </tr>
  *   <tr>
- *     <td>IoC available, bean not found</td>
- *     <td>Returns {@code null}</td>
- *     <td>Static method fallback</td>
+ *     <td>✅ Yes</td>
+ *     <td>❌ No</td>
+ *     <td>❌ No</td>
+ *     <td>Same as not specified (convention)</td>
  *   </tr>
  *   <tr>
- *     <td>No IoC framework</td>
- *     <td>Returns {@code null}</td>
- *     <td>Static method</td>
+ *     <td>✅ Yes</td>
+ *     <td>❌ No</td>
+ *     <td>✅ Yes</td>
+ *     <td>Search all providers for specified method name</td>
  *   </tr>
  *   <tr>
- *     <td>Explicit static resolution</td>
- *     <td>Returns {@code null}</td>
- *     <td>Static method</td>
+ *     <td>✅ Yes</td>
+ *     <td>✅ Yes</td>
+ *     <td>❌ No</td>
+ *     <td>Search only specified provider for {@code get[FieldName](...)}</td>
+ *   </tr>
+ *   <tr>
+ *     <td>✅ Yes</td>
+ *     <td>✅ Yes</td>
+ *     <td>✅ Yes</td>
+ *     <td>Search only specified provider for specified method</td>
  *   </tr>
  * </table>
  *
- * <h2>Usage Examples</h2>
+ * <h2>Validation Rules</h2>
+ * <p>Whether using convention or explicit reference, the method must:</p>
+ * <ul>
+ *   <li>Have parameters matching {@code dependsOn} types <b>in order</b></li>
+ *   <li>Return a type compatible with the computed field type</li>
+ *   <li>Be either static or instance (resolved at runtime via IoC)</li>
+ * </ul>
  *
- * <h3>Simple Computation (String Concatenation)</h3>
+ * <h2>Examples</h2>
+ *
+ * <h3>Example 1: Convention (Simple)</h3>
  * <pre>{@code
- * @Entity
- * public class User {
- *     private String firstName;
- *     private String lastName;
- * }
- *
  * @Projection(
- *     entity = User.class,
- *     providers = {@Provider(UserComputations.class)}
+ *   entity = User.class,
+ *   providers = {@Provider(UserComputations.class)}
  * )
  * public class UserDTO {
- *     @Computed(dependsOn = {"firstName", "lastName"})
- *     private String fullName;
- * }
- *
- * public class UserComputations {
- *     public static String getFullName(String firstName, String lastName) {
- *         return (firstName + " " + lastName).trim();
- *     }
+ *   @Computed(dependsOn = {"firstName", "lastName"})
+ *   private String fullName;  // Looks for: getFullName(String, String)
  * }
  * }</pre>
  *
- * <h3>Complex Computation with External Services</h3>
- * <pre>{@code
- * @Entity
- * public class Order {
- *     private BigDecimal amount;
- *     private String currencyCode;
- * }
- *
- * @Projection(
- *     entity = Order.class,
- *     providers = {@Provider(value = CurrencyConverter.class, bean = "converter")}
- * )
- * public class OrderDTO {
- *     @Computed(dependsOn = {"amount", "currencyCode"})
- *     private BigDecimal amountInUSD;
- * }
- *
- * // Assumes that CurrencyConverter is a bean in an IoC context
- * public class CurrencyConverter {
- *     private ExchangeRateService exchangeRateService;
- *
- *     public BigDecimal getAmountInUSD(BigDecimal amount, String currencyCode) {
- *         if ("USD".equals(currencyCode)) return amount;
- *         BigDecimal rate = exchangeRateService.getRate(currencyCode, "USD");
- *         return amount.multiply(rate);
- *     }
- * }
- * }</pre>
- *
- * <h3>Date Formatting</h3>
- * <pre>{@code
- * @Entity
- * public class Event {
- *     private LocalDateTime startTime;
- * }
- *
- * @Projection(
- *     entity = Event.class,
- *     providers = {@Provider(DateUtils.class)}
- * )
- * public class EventDTO {
- *     @Computed(dependsOn = {"startTime"})
- *     private String formattedStart;
- * }
- *
- * public class DateUtils {
- *     public static String getFormattedStart(LocalDateTime startTime) {
- *         return startTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
- *     }
- * }
- * }</pre>
- *
- * <h3>Multiple Providers with Flexible Resolution</h3>
+ * <h3>Example 2: Override Method Name</h3>
  * <pre>{@code
  * @Projection(
- *     entity = User.class,
- *     providers = {
- *         @Provider(value = UserComputations.class, bean = "userComputer"),  // Hint for IoC lookup
- *         @Provider(CommonComputations.class)                                // No hint, static fallback
- *     }
+ *   entity = User.class,
+ *   providers = {@Provider(UserComputations.class)}
  * )
  * public class UserDTO {
- *     @Computed(dependsOn = {"firstName", "lastName"})
- *     private String fullName;
- * }
- *
- * // Provider can have both static and instance methods
- * // Assumes that UserComputations is the bean "userComputer" in an IoC context
- * public class UserComputations {
- *     // Instance method - used if bean is found by resolver
- *     public String getFullName(String firstName, String lastName) {
- *         return (firstName + " " + lastName).trim();
- *     }
- *
- *     // Static method - used if resolver returns null
- *     public static String getFullName(String firstName, String lastName) {
- *         return (firstName + " " + lastName).trim();
- *     }
+ *   @Computed(
+ *     dependsOn = {"firstName", "lastName"},
+ *     computedBy = @MethodReference(method = "formatUserName")
+ *   )
+ *   private String fullName;  // Looks for: formatUserName(String, String)
  * }
  * }</pre>
  *
- * <h2>Parameter Type Matching</h2>
- * <p>The annotation processor validates parameter types at compile time to ensure they match
- * the entity field types:</p>
+ * <h3>Example 3: Target Specific Provider</h3>
  * <pre>{@code
- * @Entity
- * public class User {
- *     private String firstName;      // Type: String
- *     private String lastName;       // Type: String
- *     private LocalDate birthDate;   // Type: LocalDate
+ * @Projection(
+ *   entity = User.class,
+ *   providers = {
+ *     @Provider(LegacyUtils.class),
+ *     @Provider(ModernUtils.class)
+ *   }
+ * )
+ * public class UserDTO {
+ *   @Computed(
+ *     dependsOn = {"birthDate"},
+ *     computedBy = @MethodReference(
+ *       type = ModernUtils.class,
+ *       method = "calculateAge"
+ *     )
+ *   )
+ *   private Integer age;  // Only searches in ModernUtils.calculateAge(LocalDate)
+ * }
+ * }</pre>
+ *
+ * <h3>Example 4: Reuse Same Method for Multiple Fields</h3>
+ * <pre>{@code
+ * @Projection(
+ *   entity = Product.class,
+ *   providers = {@Provider(FormatUtils.class)}
+ * )
+ * public class ProductDTO {
+ *   @Computed(
+ *     dependsOn = {"name"},
+ *     computedBy = @MethodReference(method = "uppercase")
+ *   )
+ *   private String displayName;
+ *
+ *   @Computed(
+ *     dependsOn = {"category"},
+ *     computedBy = @MethodReference(method = "uppercase")
+ *   )
+ *   private String displayCategory;
  * }
  *
- * public class UserComputations {
- *     // ✅ CORRECT: Parameter types match dependsOn field types
- *     public static String getFullName(String firstName, String lastName) { ... }
- *
- *     // ✅ CORRECT: Parameter type matches birthDate type
- *     public static Integer getAge(LocalDate birthDate) { ... }
- *
- *     // ❌ COMPILATION ERROR: Parameter type doesn't match (expects LocalDate, not String)
- *     public static Integer getAge(String birthDate) { ... }
- *
- *     // ❌ COMPILATION ERROR: Wrong parameter types
- *     public static String getFullName(Object firstName, Object lastName) { ... }
+ * public class FormatUtils {
+ *   public static String uppercase(String input) {
+ *     return input != null ? input.toUpperCase() : null;
+ *   }
  * }
  * }</pre>
  *
  * <h2>Compilation Errors</h2>
- * <p>The annotation processor will generate compilation errors in these scenarios:</p>
+ * <p>The processor generates errors for:</p>
  * <ul>
- *   <li><b>Missing Dependency:</b> Any field in {@code dependsOn} does not exist in the source entity</li>
- *   <li><b>No Matching Method:</b> No provider has a method matching the required signature</li>
- *   <li><b>Parameter Type Mismatch:</b> Method parameters don't match {@code dependsOn} field types</li>
- *   <li><b>Parameter Order Mismatch:</b> Method parameters are in wrong order</li>
- *   <li><b>Return Type Incompatible:</b> Method return type is not assignable to the computed field type</li>
+ *   <li><b>Method not found:</b> Specified method doesn't exist in target provider(s)</li>
+ *   <li><b>Provider not found:</b> Specified {@code type} not in {@link Projection#providers()}</li>
+ *   <li><b>Parameter mismatch:</b> Method parameters don't match {@code dependsOn} types</li>
+ *   <li><b>Return type mismatch:</b> Method return type incompatible with field type</li>
  * </ul>
  *
  * <h3>Example Error Messages</h3>
  * <pre>
- * ❌ No matching provider method found for computed field 'fullName'.
- *    Expected: String getFullName(String firstName, String lastName)
+ * ❌ Method 'formatUserName' not found in any provider.
+ *    Searched in: UserComputations, CommonUtils
+ *    Expected signature: String formatUserName(String, String)
  *
- * ❌ Method MyComputations.getAge has incompatible return type.
- *    Expected: Integer, Found: String
+ * ❌ Provider 'ModernUtils' not found.
+ *    Available providers: LegacyUtils, CommonUtils
+ *    Add @Provider(ModernUtils.class) to @Projection
  *
- * ❌ Computed field 'fullName': Field 'firstName' not found in entity User
+ * ❌ Method 'calculateAge' found in ModernUtils but with wrong signature.
+ *    Expected: Integer calculateAge(LocalDate)
+ *    Found: String calculateAge(String)
  * </pre>
  *
  * <h2>Best Practices</h2>
  * <ol>
- *   <li><b>Provide Both Static and Instance Methods</b> when possible, for maximum flexibility
- *       across different runtime environments</li>
- *   <li><b>Use Bean Hints</b> ({@link Provider#bean()}) to guide IoC resolution when multiple
- *       beans of the same type exist</li>
- *   <li><b>Group Related Computations</b> in a single provider class for better organization</li>
- *   <li><b>Order Providers</b> from most specific to most general for efficient resolution</li>
- *   <li><b>Keep Methods Pure</b> when possible (no side effects) for easier testing and debugging</li>
- *   <li><b>Document Dependencies</b> clearly in your provider class JavaDoc</li>
+ *   <li><b>Prefer Convention:</b> Use {@code computedBy} only when necessary</li>
+ *   <li><b>Document Overrides:</b> Comment why you're overriding the convention</li>
+ *   <li><b>Avoid Ambiguity:</b> If multiple providers have same method, use {@code type} to specify</li>
+ *   <li><b>Generic Methods:</b> Create reusable utility methods for common transformations</li>
+ *   <li><b>Provider Order:</b> Put most specific providers first in {@link Projection#providers()}</li>
  * </ol>
- *
- * <h2>Filtering Limitations</h2>
- * <p><b>Important:</b> Computed fields <b>cannot be used in filters</b> because they are calculated
- * in-memory after database retrieval. This is a fundamental architectural constraint shared by all
- * major frameworks (GraphQL resolvers, Spring Data projections, Hibernate formulas).</p>
- *
- * <p>To filter on computed field logic, filter on its dependencies instead:</p>
- * <pre>{@code
- * // ❌ WRONG: Cannot filter on computed field
- * query.filter("fullName = 'John Doe'")
- *
- * // ✅ CORRECT: Filter on dependencies
- * query.filter("firstName = 'John' AND lastName = 'Doe'")
- * }</pre>
  *
  * @since 1.0.0
  * @author Frank KOSSI
  * @see Projection
  * @see Provider
  * @see Projected
+ * @see MethodReference
  */
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.FIELD)
@@ -346,4 +387,73 @@ public @interface Computed {
      * @return array of entity field paths that this computed field requires
      */
     String[] dependsOn();
+
+    /**
+     * Optional explicit reference to the computation method.
+     *
+     * <p>Use this to override the default convention-based method resolution.</p>
+     *
+     * <h3>When to use:</h3>
+     * <ul>
+     *   <li>Multiple fields need similar computations with different method names</li>
+     *   <li>Reusing the same generic method for multiple fields</li>
+     *   <li>Disambiguating when multiple providers have methods with same name</li>
+     *   <li>Targeting a specific provider among many</li>
+     * </ul>
+     *
+     * <h3>Resolution behavior:</h3>
+     * <table border="1">
+     *   <tr>
+     *     <th>Configuration</th>
+     *     <th>Resolution Strategy</th>
+     *   </tr>
+     *   <tr>
+     *     <td>Not specified (default)</td>
+     *     <td>Search all providers for {@code get[FieldName]}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@code @MethodReference(method = "myMethod")}</td>
+     *     <td>Search all providers for {@code myMethod}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@code @MethodReference(type = MyProvider.class)}</td>
+     *     <td>Search only {@code MyProvider} for {@code get[FieldName]}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@code @MethodReference(type = MyProvider.class, method = "myMethod")}</td>
+     *     <td>Search only {@code MyProvider.myMethod}</td>
+     *   </tr>
+     * </table>
+     *
+     * <h3>Examples:</h3>
+     * <pre>{@code
+     * // Override method name only
+     * @Computed(
+     *   dependsOn = {"firstName", "lastName"},
+     *   computedBy = @MethodReference(method = "buildDisplayName")
+     * )
+     * private String fullName;
+     *
+     * // Target specific provider
+     * @Computed(
+     *   dependsOn = {"amount"},
+     *   computedBy = @MethodReference(type = ModernCalculator.class)
+     * )
+     * private BigDecimal total;  // Uses ModernCalculator.getTotal(...)
+     *
+     * // Both type and method
+     * @Computed(
+     *   dependsOn = {"value"},
+     *   computedBy = @MethodReference(
+     *     type = StringUtils.class,
+     *     method = "uppercase"
+     *   )
+     * )
+     * private String normalized;
+     * }</pre>
+     *
+     * @return method reference for explicit computation method resolution
+     * @since 1.1.0
+     */
+    MethodReference computedBy() default @MethodReference;
 }
