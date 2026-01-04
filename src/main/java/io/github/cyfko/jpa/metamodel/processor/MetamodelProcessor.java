@@ -95,10 +95,10 @@ public class MetamodelProcessor extends AbstractProcessor {
             projectionProcessor.processProjections();
         }
 
-        // ==================== Phase 4 : Post-vérification de compatibilité des types ====================
+        // ==================== Phase 3 : Post-vérification de compatibilité des types ====================
         if (entitiesProcessed && !projectionDtos.isEmpty()) {
             for (TypeElement dtoClass : projectionDtos) {
-                //verifyProjectionTypeCompatibility(dtoClass, messager, new HashSet<>());
+                verifyProjectionTypeCompatibility(dtoClass, messager, new HashSet<>());
             }
         }
 
@@ -146,35 +146,35 @@ public class MetamodelProcessor extends AbstractProcessor {
         // Récupérer la métadonnée de projection
         var projectionMeta = projectionProcessor.getRegistry().get(dtoClass.getQualifiedName().toString());
         if (projectionMeta == null) return;
+
         String entityClassName = projectionMeta.entityClass();
         var entityFields = entityProcessor.getRegistry().get(entityClassName);
         if (entityFields == null) return;
+
         for (var mapping : projectionMeta.directMappings()) {
             String dtoField = mapping.dtoField();
-            String entityField = mapping.entityField();
             String dtoFieldType = mapping.dtoFieldType();
-            String entityFieldType = entityFields.get(entityField) != null ? entityFields.get(entityField).relatedType() : null;
-            if (entityFieldType == null) {
-                messager.printMessage(Diagnostic.Kind.ERROR, "Field '" + entityField + "' not found on entity " + entityClassName, dtoClass);
-                continue;
-            }
-            // Vérification récursive si le champ projeté est lui-même une projection
-            TypeElement dtoFieldTypeElement = processingEnv.getElementUtils().getTypeElement(dtoFieldType);
-            if (dtoFieldTypeElement != null && projectionProcessor.getRegistry().containsKey(dtoFieldTypeElement.getQualifiedName().toString())) {
-                // Champ DTO = projection imbriquée, vérifier récursivement
-                verifyProjectionTypeCompatibility(dtoFieldTypeElement, messager, visited);
-            } else {
-                // Champ simple : vérifier assignabilité stricte
-                Types types = processingEnv.getTypeUtils();
-                TypeMirror dtoType = dtoFieldTypeElement != null ? dtoFieldTypeElement.asType() : null;
-                TypeElement entityFieldTypeElement = processingEnv.getElementUtils().getTypeElement(entityFieldType);
-                TypeMirror entityType = entityFieldTypeElement != null ? entityFieldTypeElement.asType() : null;
-                if (dtoType != null && entityType != null && !types.isSameType(dtoType, entityType)) {
-                    messager.printMessage(Diagnostic.Kind.ERROR,
-                        "Projected field has a type mismatch '" + dtoField + "' : DTO=" + dtoFieldType + ", Entity=" + entityFieldType,
-                        dtoClass);
+
+            projectionProcessor.validateEntityFieldPath(entityClassName, mapping.entityField(), entityFieldType -> {
+
+                // Vérification récursive si le champ projeté est lui-même une projection
+                TypeElement dtoFieldTypeElement = processingEnv.getElementUtils().getTypeElement(dtoFieldType);
+                if (dtoFieldTypeElement != null && projectionProcessor.getRegistry().containsKey(dtoFieldTypeElement.getQualifiedName().toString())) {
+                    // Champ DTO = projection imbriquée, vérifier récursivement
+                    verifyProjectionTypeCompatibility(dtoFieldTypeElement, messager, visited);
+                } else {
+                    // Champ simple : vérifier assignabilité stricte
+                    Types types = processingEnv.getTypeUtils();
+                    TypeMirror dtoType = dtoFieldTypeElement != null ? dtoFieldTypeElement.asType() : null;
+                    TypeElement entityFieldTypeElement = processingEnv.getElementUtils().getTypeElement(entityFieldType);
+                    TypeMirror entityType = entityFieldTypeElement != null ? entityFieldTypeElement.asType() : null;
+                    if (dtoType != null && entityType != null && !types.isSameType(dtoType, entityType)) {
+                        messager.printMessage(Diagnostic.Kind.ERROR,
+                                "Projected field has a type mismatch '" + dtoField + "' : DTO=" + dtoFieldType + ", Entity=" + entityFieldType,
+                                dtoClass);
+                    }
                 }
-            }
+            });
         }
     }
 }

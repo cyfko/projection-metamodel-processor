@@ -3,6 +3,8 @@ package io.github.cyfko.jpa.metamodel.util;
 
 import io.github.cyfko.jpa.metamodel.model.CollectionKind;
 import io.github.cyfko.jpa.metamodel.model.CollectionType;
+import io.github.cyfko.jpa.metamodel.processor.EntityProcessor;
+import io.github.cyfko.jpa.metamodel.processor.ProjectionProcessor;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;

@@ -5,7 +5,6 @@ import io.github.cyfko.jpa.metamodel.model.CollectionMetadata;
 import io.github.cyfko.jpa.metamodel.model.CollectionType;
 import io.github.cyfko.jpa.metamodel.model.PersistenceMetadata;
 import io.github.cyfko.jpa.metamodel.util.AnnotationProcessorUtils;
-import jakarta.persistence.Entity;
 
 import javax.annotation.processing.*;
 import javax.lang.model.element.*;

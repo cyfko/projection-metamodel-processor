@@ -22,7 +22,7 @@ public class OrderSummaryDTO {
     private BigDecimal totalAmount;
     
     @Projected(from = "status")
-    private String status;
+    private Order.OrderStatus status;
     
     @Projected(from = "user.email")
     private String customerEmail;
@@ -40,8 +40,8 @@ public class OrderSummaryDTO {
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
     
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public Order.OrderStatus getStatus() { return status; }
+    public void setStatus(Order.OrderStatus status) { this.status = status; }
     
     public String getCustomerEmail() { return customerEmail; }
     public void setCustomerEmail(String customerEmail) { this.customerEmail = customerEmail; }

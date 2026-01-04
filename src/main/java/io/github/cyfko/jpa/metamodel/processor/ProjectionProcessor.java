@@ -204,9 +204,9 @@ public class ProjectionProcessor {
                         // Validate all dependencies exist in entity
                         final Map<String, String> depsToFqcnMapping = new HashMap<>();
                         for (String dependency : dependencies) {
-                            ValidationResult validation = validateEntityFieldPath(entityClassName, dependency,fqcn -> depsToFqcnMapping.put(dependency, fqcn));
-                            if (!validation.isValid()) {
-                                messager.printMessage(Diagnostic.Kind.ERROR, "Computed field '" + dtoField + "': " + validation.errorMessage(), dtoClass);
+                            String errorMessage = validateEntityFieldPath(entityClassName, dependency,fqcn -> depsToFqcnMapping.put(dependency, fqcn));
+                            if (errorMessage != null) {
+                                messager.printMessage(Diagnostic.Kind.ERROR, "Computed field '" + dtoField + "': " + errorMessage, dtoClass);
                                 return;
                             }
                         }
@@ -241,15 +241,14 @@ public class ProjectionProcessor {
     private void insertDirectMapping(VariableElement dtoField, String entityClassName, String entityField, List<SimpleDirectMapping> directMappings) {
         Messager messager = this.processingEnv.getMessager();
 
-        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, null);
-
-        if (!validation.isValid()) {
-            messager.printMessage(Diagnostic.Kind.ERROR, validation.errorMessage(), dtoField);
+        String errorMessage = validateEntityFieldPath(entityClassName, entityField, null);
+        if (errorMessage != null) {
+            messager.printMessage(Diagnostic.Kind.ERROR, errorMessage, dtoField);
             return;
         }
 
         boolean isCollection = isCollection(dtoField.asType());
-        String itemType = resolveRelatedType(dtoField, isCollection, messager);
+        String itemType = resolveRelatedType(dtoField, isCollection);
 
         if (isCollection) {
             DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(dtoField, itemType);
@@ -425,10 +424,9 @@ public class ProjectionProcessor {
      *
      * @param field               the field element to analyze
      * @param isElementCollection whether the field is known to represent an element collection
-     * @param messager            the messager to use for diagnostics if needed
      * @return the fully qualified name of the element type, or {@code null} if it cannot be determined
      */
-    private String resolveRelatedType(VariableElement field, boolean isElementCollection, Messager messager) {
+    private String resolveRelatedType(VariableElement field, boolean isElementCollection) {
         TypeMirror type = field.asType();
         if (type instanceof DeclaredType dt) {
             Element target = dt.asElement();
@@ -488,25 +486,65 @@ public class ProjectionProcessor {
      * Validates that a dotted entity field path (e.g. {@code "address.city"}) exists
      * and can be navigated using metadata provided by {@link EntityProcessor}.
      * <p>
-     * The method walks through entity and embeddable metadata, segment by segment, ensuring
+     * This method walks through entity and embeddable metadata, segment by segment, ensuring
      * that each intermediate segment is non-scalar and that the final segment is present.
      * When {@code withFqcn} is provided and the path is valid, the fully qualified type of
-     * the last segment is passed to the consumer. 
+     * the last segment is passed to the consumer.
      * </p>
      *
-     * @param entityClassName the fully qualified name of the root entity
-     * @param fieldPath       the dotted path to validate
-     * @param withFqcn        optional consumer invoked with the fully qualified type of the last segment
-     * @return a {@link ValidationResult} describing whether the path is valid and, if not, the error message
+     * <p><b>Validation rules:</b></p>
+     * <ul>
+     *   <li>Root entity must exist in {@link EntityProcessor#getRegistry()}.</li>
+     *   <li>Each path segment must exist in the current entity's metadata.</li>
+     *   <li>Intermediate segments must reference non-scalar types (entities or embeddables).</li>
+     *   <li>Final segment can be any valid field type.</li>
+     * </ul>
+     *
+     * <h3>Examples</h3>
+     * <pre>{@code
+     * // Valid paths → returns null
+     * String error = validateEntityFieldPath("com.example.User", "address.city", null);
+     * assertNull(error);
+     *
+     * validateEntityFieldPath("com.example.User", "profile.details.name", fqcnConsumer);
+     *
+     * // Invalid paths → returns error message
+     * assertNotNull(validateEntityFieldPath("com.example.User", "name.surname", null));     // name is scalar
+     * assertNotNull(validateEntityFieldPath("com.example.User", "address.unknown", null));  // unknown field
+     * assertNotNull(validateEntityFieldPath("UnknownEntity", "field", null));               // entity not found
+     * }</pre>
+     *
+     * <h3>Typical usage patterns</h3>
+     * <pre>{@code
+     * // 1. Simple validation
+     * String error = validateEntityFieldPath("com.example.User", "address.city", null);
+     * if (error != null) {
+     *     throw new IllegalArgumentException(error);
+     * }
+     *
+     * // 2. Validation + type resolution for dynamic type conversion
+     * validateEntityFieldPath("com.example.User", "profile.details.value", typeFqcn -> {
+     *     Class<?> targetType = loadClass(typeFqcn);
+     *     configureTypeConverter(targetType);
+     * });
+     * }</pre>
+     *
+     * @param entityClassName the fully qualified name of the root entity (must exist in registry)
+     * @param fieldPath       the dotted path to validate (e.g. {@code "address.city.name"})
+     * @param withFqcn        optional consumer to receive the FQCN of the final field's type,
+     *                        called only if validation succeeds; can be {@code null}
+     * @return {@code null} if the path is valid, or an error message describing the validation failure
+     *
+     * @see #getSimpleName(String) for the simple class name used in error messages
      */
-    private ValidationResult validateEntityFieldPath(String entityClassName, String fieldPath, Consumer<String> withFqcn) {
+    public String validateEntityFieldPath(String entityClassName, String fieldPath, Consumer<String> withFqcn) {
         // Get entity metadata from EntityRegistryProcessor
         Map<String, Map<String, EntityProcessor.SimplePersistenceMetadata>> entityRegistry = entityProcessor.getRegistry();
         Map<String, Map<String, EntityProcessor.SimplePersistenceMetadata>> embeddableRegistry = entityProcessor.getEmbeddableRegistry();
         Map<String, EntityProcessor.SimplePersistenceMetadata> entityMetadata = entityRegistry.get(entityClassName);
 
         if (entityMetadata == null) {
-            return ValidationResult.error("Entity " + entityClassName + " not found in registry");
+            return "Entity " + entityClassName + " not found in registry";
         }
 
         // Handle nested paths (e.g., "address.city")
@@ -523,25 +561,19 @@ public class ProjectionProcessor {
             }
 
             if (currentMetadata == null) {
-                return ValidationResult.error(
-                        String.format("Field '%s' not found in %s (path: %s)", segment, currentClassName, fieldPath)
-                );
+                return String.format("Field '%s' not found in %s (path: %s)", segment, currentClassName, fieldPath);
             }
 
             // Check if field exists in metadata
             EntityProcessor.SimplePersistenceMetadata fieldMetadata = currentMetadata.get(segment);
             if (fieldMetadata == null) {
-                return ValidationResult.error(
-                        String.format("Field '%s' not found in entity %s (path: %s)", segment, getSimpleName(currentClassName), fieldPath)
-                );
+                return String.format("Field '%s' not found in entity %s (path: %s)", segment, getSimpleName(currentClassName), fieldPath);
             }
 
             // If not the last segment, navigate to related type
             if (i < segments.length - 1) {
                 if (BASIC_JPA_TYPES.contains(fieldMetadata.relatedType())) {
-                    return ValidationResult.error(
-                            String.format("Cannot navigate through scalar field '%s' in %s", segment, getSimpleName(currentClassName))
-                    );
+                    return String.format("Cannot navigate through scalar field '%s' in %s", segment, getSimpleName(currentClassName));
                 }
 
                 currentClassName = fieldMetadata.relatedType();
@@ -550,42 +582,7 @@ public class ProjectionProcessor {
             }
         }
 
-        return ValidationResult.valid();
-    }
-
-    /**
-     * Retrieves a {@link java.lang.reflect.Field} from the given class, searching in its
-     * superclass hierarchy if necessary. 
-     *
-     * @param clazz     the starting class to inspect
-     * @param fieldName the name of the field to locate
-     * @return the reflective {@link java.lang.reflect.Field} instance
-     * @throws NoSuchFieldException if the field cannot be found in the class or any of its superclasses
-     */
-    private java.lang.reflect.Field getFieldFromClass(Class<?> clazz, String fieldName)
-            throws NoSuchFieldException {
-        Class<?> current = clazz;
-        while (current != null && current != Object.class) {
-            try {
-                return current.getDeclaredField(fieldName);
-            } catch (NoSuchFieldException e) {
-                current = current.getSuperclass();
-            }
-        }
-        throw new NoSuchFieldException(
-                String.format("Field '%s' not found in %s or its superclasses", fieldName, clazz.getSimpleName())
-        );
-    }
-
-    /**
-     * Returns the simple class name extracted from a fully qualified class name. 
-     *
-     * @param fqcn the fully qualified class name
-     * @return the simple name (segment after the last dot) or the original string if no dot is present
-     */
-    private String getSimpleName(String fqcn) {
-        int lastDot = fqcn.lastIndexOf('.');
-        return lastDot >= 0 ? fqcn.substring(lastDot + 1) : fqcn;
+        return null;
     }
 
     /**
@@ -733,6 +730,18 @@ public class ProjectionProcessor {
     }
 
     /**
+     * Returns the simple class name extracted from a fully qualified class name.
+     *
+     * @param fqcn the fully qualified class name
+     * @return the simple name (segment after the last dot) or the original string if no dot is present
+     */
+    private String getSimpleName(String fqcn) {
+        int lastDot = fqcn.lastIndexOf('.');
+        return lastDot >= 0 ? fqcn.substring(lastDot + 1) : fqcn;
+    }
+
+
+    /**
      * Capitalizes the first character of the given string, leaving the remainder unchanged.
      * <p>
      * This method is null-safe and returns the input as-is when the string is {@code null}
@@ -789,20 +798,4 @@ public class ProjectionProcessor {
      * @param bean      the bean identifier used to resolve the provider in the runtime container
      */
     public record SimpleComputationProvider(String className, String bean) { }
-
-    /**
-     * Simple validation result record used to report success or failure of structural checks. 
-     *
-     * @param isValid      {@code true} if validation succeeded, {@code false} otherwise
-     * @param errorMessage the error message when invalid, or {@code null} when valid
-     */
-    record ValidationResult(boolean isValid, String errorMessage) {
-        static ValidationResult valid() {
-            return new ValidationResult(true, null);
-        }
-
-        static ValidationResult error(String message) {
-            return new ValidationResult(false, message);
-        }
-    }
 }
