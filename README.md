@@ -3,7 +3,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.cyfko/jpa-metamodel-processor)](https://search.maven.org/artifact/io.github.cyfko/jpa-metamodel-processor)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Projection Metamodel Processor** is a Java annotation processor that generates a compile-time type-safe metadata registry for JPA entities and their DTO projections. It automatically extracts structural information from entities (fields, identifiers, relationships, collections) and enables declarative mapping definitions between entities and DTOs with support for computed fields.
+**Projection Metamodel Processor** is a Java annotation processor of the [Projection Specification](https://github.com/cyfko/projection-spec/tree/main) that generates a compile-time type-safe metadata registry for JPA entities and their DTO projections. It automatically extracts structural information from entities (fields, identifiers, relationships, collections) and enables declarative mapping definitions between entities and DTOs with support for computed fields.
 
 ## 🎯 Goals
 
@@ -268,6 +268,8 @@ The processor works in two phases:
 The generated registries are immutable and thread-safe, accessible via the utility classes `PersistenceRegistry` and `ProjectionRegistry`.
 
 ## 📝 Annotations
+
+Annotation described here is a reminder of the [Projection Specification](https://github.com/cyfko/projection-spec/tree/main)
 
 ### `@Projection`
 
