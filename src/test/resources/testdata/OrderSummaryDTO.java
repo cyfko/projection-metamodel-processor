@@ -1,9 +1,9 @@
 package io.github.cyfko.example;
 
-import io.github.cyfko.jpa.metamodel.Computed;
-import io.github.cyfko.jpa.metamodel.Provider;
-import io.github.cyfko.jpa.metamodel.Projected;
-import io.github.cyfko.jpa.metamodel.Projection;
+import io.github.cyfko.projection.Computed;
+import io.github.cyfko.projection.Provider;
+import io.github.cyfko.projection.Projected;
+import io.github.cyfko.projection.Projection;
 
 import java.math.BigDecimal;
 

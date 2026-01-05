@@ -1,9 +1,9 @@
-# JPA Metamodel Processor
+# Projection Metamodel Processor
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.cyfko/jpa-metamodel-processor)](https://search.maven.org/artifact/io.github.cyfko/jpa-metamodel-processor)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**JPA Metamodel Processor** is a Java annotation processor that generates a compile-time type-safe metadata registry for JPA entities and their DTO projections. It automatically extracts structural information from entities (fields, identifiers, relationships, collections) and enables declarative mapping definitions between entities and DTOs with support for computed fields.
+**Projection Metamodel Processor** is a Java annotation processor that generates a compile-time type-safe metadata registry for JPA entities and their DTO projections. It automatically extracts structural information from entities (fields, identifiers, relationships, collections) and enables declarative mapping definitions between entities and DTOs with support for computed fields.
 
 ## 🎯 Goals
 
@@ -163,7 +163,7 @@ public class UserDTO {
 #### Access Entity Metadata
 
 ```java
-import io.github.cyfko.jpa.metamodel.PersistenceRegistry;
+import io.github.cyfko.projection.metamodel.PersistenceRegistry;
 
 // Check if an entity is registered
 boolean isRegistered = PersistenceRegistry.isEntityRegistered(User.class);
@@ -181,7 +181,7 @@ boolean isRegistered = PersistenceRegistry.isEntityRegistered(User.class);
 #### Access Projection Metadata
 
 ```java
-import io.github.cyfko.jpa.metamodel.ProjectionRegistry;
+import io.github.cyfko.projection.metamodel.ProjectionRegistry;
 
 // Get metadata for a projection
 ProjectionMetadata projectionMeta = ProjectionRegistry.getMetadataFor(UserDTO.class);
