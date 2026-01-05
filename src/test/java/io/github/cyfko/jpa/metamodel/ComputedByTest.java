@@ -17,6 +17,49 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
  */
 class ComputedByTest {
 
+    @Test
+    void testComputedByExternalStaticClass() throws IOException {
+        var entity = JavaFileObjects.forSourceString(
+            "io.github.cyfko.example.User",
+            """
+            package io.github.cyfko.example;
+            import jakarta.persistence.*;
+            @Entity
+            public class User {
+                @Id
+                private Long id;
+                private String firstName;
+                private String lastName;
+            }
+            """
+        );
+        var external = JavaFileObjects.forSourceString(
+            "io.github.cyfko.example.ExternalComputer",
+            """
+            package io.github.cyfko.example;
+            public class ExternalComputer {
+                public static String joinNames(String first, String last) {
+                    return first + ":" + last;
+                }
+            }
+            """
+        );
+        var dto = JavaFileObjects.forSourceString(
+            "io.github.cyfko.example.UserDTO",
+            """
+            package io.github.cyfko.example;
+            import io.github.cyfko.jpa.metamodel.*;
+            @Projection(entity = User.class)
+            public class UserDTO {
+                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames"))
+                private String displayName;
+            }
+            """
+        );
+        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).compile(entity, external, dto);
+        assertThat(compilation).succeeded();
+    }
+
     private static final String PROVIDER = "io.github.cyfko.example.UserComputations";
 
     private static final String PROVIDER_CODE = """
