@@ -728,8 +728,8 @@ public class ProjectionProcessor {
                 "                    new ComputedField(\"%s\", new String[]{%s}, %s, %s)",
                 f.dtoField(),
                 deps,
-                f.methodClass == null ? null : f.methodClass,
-                f.methodName == null || f.methodName.isBlank() ? null : f.methodName
+                f.methodClass == null ? null : f.methodClass + ".class",
+                f.methodName == null || f.methodName.isBlank() ? null : "\"" + f.methodName + "\""
         );
     }
 
