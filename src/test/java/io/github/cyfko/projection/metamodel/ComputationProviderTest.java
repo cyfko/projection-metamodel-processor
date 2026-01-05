@@ -1296,6 +1296,7 @@ class ComputationProviderTest {
         // Verify bean name is included
         assert generatedCode.contains("userComputationsBean");
         assert generatedCode.contains("UserComputations.class");
+        assert generatedCode.contains("new ComputedField(\"fullName\", new String[]{\"firstName\", \"lastName\"})");
     }
 }
 

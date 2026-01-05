@@ -153,7 +153,7 @@ public class ProjectionProcessor {
 
         // Process computation providers
         AnnotationProcessorUtils.processExplicitFields(dtoClass,
-                 Projection.class.getCanonicalName(),
+                 Projection.class.getName(),
                 params -> {
                     @SuppressWarnings("unchecked") List<Map<String,Object>> computersList = (List<Map<String,Object>>) params.get("providers");
                     if (computersList == null) return;
@@ -173,7 +173,7 @@ public class ProjectionProcessor {
             // Process direct mappings
             AnnotationProcessorUtils.processExplicitFields(
                     enclosedElement,
-                    Projected.class.getCanonicalName(),
+                    Projected.class.getName(),
                     params -> {
                         // validate entity field path
                         String entityField = params.get("from").toString();
@@ -188,7 +188,7 @@ public class ProjectionProcessor {
 
             // Process computed fields
             AnnotationProcessorUtils.processExplicitFields(enclosedElement,
-                    Computed.class.getCanonicalName(),
+                    Computed.class.getName(),
                     params -> {
                         String dtoField = enclosedElement.getSimpleName().toString();
                         @SuppressWarnings("unchecked") List<String> dependencies = (List<String>) params.get("dependsOn");
@@ -479,7 +479,7 @@ public class ProjectionProcessor {
      */
     private TypeMirror getEntityClass(TypeElement dtoClass) {
         for (AnnotationMirror mirror : dtoClass.getAnnotationMirrors()) {
-            if (! Projection.class.getCanonicalName().equals(mirror.getAnnotationType().toString())) {
+            if (! Projection.class.getName().equals(mirror.getAnnotationType().toString())) {
                 continue;
             }
 
@@ -724,6 +724,15 @@ public class ProjectionProcessor {
         String deps = Arrays.stream(f.dependencies())
                 .map(d -> "\"" + d + "\"")
                 .collect(Collectors.joining(", "));
+
+        if (f.methodClass == null && f.methodName == null) {
+            return String.format(
+                    "                    new ComputedField(\"%s\", new String[]{%s})",
+                    f.dtoField(),
+                    deps
+            );
+        }
+
         return String.format(
                 "                    new ComputedField(\"%s\", new String[]{%s}, %s, %s)",
                 f.dtoField(),
