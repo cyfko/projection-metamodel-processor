@@ -206,7 +206,7 @@ class ProjectionIntegrationTest {
                                     package com.example;
                                     import io.github.cyfko.projection.Projection;
 
-                                    @Projection(entity=com.example.Product.class)
+                                    @Projection(from=com.example.Product.class)
                                     public class ProductDTO {
                                         private String name;
                                         private double price;
@@ -275,7 +275,7 @@ class ProjectionIntegrationTest {
                                     package com.example;
                                     import io.github.cyfko.projection.Projection;
 
-                                    @Projection(entity=com.example.Order.class)
+                                    @Projection(from=com.example.Order.class)
                                     public class OrderDTO {
                                         @com.example.NotNull
                                         private String reference;

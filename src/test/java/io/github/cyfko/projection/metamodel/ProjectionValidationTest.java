@@ -15,37 +15,35 @@ class ProjectionValidationTest {
     @Test
     void testInvalidEntityFieldPath() {
         JavaFileObject userEntity = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.User",
-            """
-            package io.github.cyfko.example;
-            import jakarta.persistence.*;
-            
-            @Entity
-            public class User {
-                @Id
-                private Long id;
-                private String name;
-            }
-            """
-        );
+                "io.github.cyfko.example.User",
+                """
+                        package io.github.cyfko.example;
+                        import jakarta.persistence.*;
+
+                        @Entity
+                        public class User {
+                            @Id
+                            private Long id;
+                            private String name;
+                        }
+                        """);
 
         JavaFileObject invalidDTO = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.UserDTO",
-            """
-            package io.github.cyfko.example;
-            import io.github.cyfko.projection.*;
-            
-            @Projection(entity = User.class)
-            public class UserDTO {
-                @Projected(from = "nonExistentField")
-                private String field;
-            }
-            """
-        );
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(from = User.class)
+                        public class UserDTO {
+                            @Projected(from = "nonExistentField")
+                            private String field;
+                        }
+                        """);
 
         Compilation compilation = Compiler.javac()
-            .withProcessors(new MetamodelProcessor())
-            .compile(userEntity, invalidDTO);
+                .withProcessors(new MetamodelProcessor())
+                .compile(userEntity, invalidDTO);
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("Field 'nonExistentField' not found");
@@ -54,37 +52,35 @@ class ProjectionValidationTest {
     @Test
     void testInvalidNestedPath() {
         JavaFileObject userEntity = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.User",
-            """
-            package io.github.cyfko.example;
-            import jakarta.persistence.*;
-            
-            @Entity
-            public class User {
-                @Id
-                private Long id;
-                private String name;
-            }
-            """
-        );
+                "io.github.cyfko.example.User",
+                """
+                        package io.github.cyfko.example;
+                        import jakarta.persistence.*;
+
+                        @Entity
+                        public class User {
+                            @Id
+                            private Long id;
+                            private String name;
+                        }
+                        """);
 
         JavaFileObject invalidDTO = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.UserDTO",
-            """
-            package io.github.cyfko.example;
-            import io.github.cyfko.projection.*;
-            
-            @Projection(entity = User.class)
-            public class UserDTO {
-                @Projected(from = "name.something")
-                private String field;
-            }
-            """
-        );
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(from = User.class)
+                        public class UserDTO {
+                            @Projected(from = "name.something")
+                            private String field;
+                        }
+                        """);
 
         Compilation compilation = Compiler.javac()
-            .withProcessors(new MetamodelProcessor())
-            .compile(userEntity, invalidDTO);
+                .withProcessors(new MetamodelProcessor())
+                .compile(userEntity, invalidDTO);
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("Cannot navigate through scalar field");
@@ -93,39 +89,37 @@ class ProjectionValidationTest {
     @Test
     void testInvalidComputedDependency() {
         JavaFileObject userEntity = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.User",
-            """
-            package io.github.cyfko.example;
-            import jakarta.persistence.*;
-            
-            @Entity
-            public class User {
-                @Id
-                private Long id;
-                private String name;
-            }
-            """
-        );
+                "io.github.cyfko.example.User",
+                """
+                        package io.github.cyfko.example;
+                        import jakarta.persistence.*;
+
+                        @Entity
+                        public class User {
+                            @Id
+                            private Long id;
+                            private String name;
+                        }
+                        """);
 
         JavaFileObject invalidDTO = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.UserDTO",
-            """
-            package io.github.cyfko.example;
-            import io.github.cyfko.projection.*;
-            
-            @Projection(
-                entity = User.class
-            )
-            public class UserDTO {
-                @Computed(dependsOn = {"nonExistent"})
-                private String computed;
-            }
-            """
-        );
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(
+                            from = User.class
+                        )
+                        public class UserDTO {
+                            @Computed(dependsOn = {"nonExistent"})
+                            private String computed;
+                        }
+                        """);
 
         Compilation compilation = Compiler.javac()
-            .withProcessors(new MetamodelProcessor())
-            .compile(userEntity, invalidDTO);
+                .withProcessors(new MetamodelProcessor())
+                .compile(userEntity, invalidDTO);
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("Field 'nonExistent' not found");
@@ -134,22 +128,21 @@ class ProjectionValidationTest {
     @Test
     void testEntityNotFound() {
         JavaFileObject invalidDTO = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.UserDTO",
-            """
-            package io.github.cyfko.example;
-            import io.github.cyfko.projection.*;
-            
-            @Projection(entity = NonExistentEntity.class)
-            public class UserDTO {
-                @Projected(from = "field")
-                private String field;
-            }
-            """
-        );
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(from = NonExistentEntity.class)
+                        public class UserDTO {
+                            @Projected(from = "field")
+                            private String field;
+                        }
+                        """);
 
         Compilation compilation = Compiler.javac()
-            .withProcessors(new MetamodelProcessor())
-            .compile(invalidDTO);
+                .withProcessors(new MetamodelProcessor())
+                .compile(invalidDTO);
 
         assertThat(compilation).failed();
     }
@@ -159,54 +152,51 @@ class ProjectionValidationTest {
         JavaFileObject addressEmbeddable = JavaFileObjects.forSourceString(
                 "io.github.cyfko.example.Address",
                 """
-                package io.github.cyfko.example;
-                import jakarta.persistence.Embeddable;
-                
-                @Embeddable
-                public class Address {
-                    private String city;
-                    private String zipCode;
-                }
-                """
-        );
+                        package io.github.cyfko.example;
+                        import jakarta.persistence.Embeddable;
+
+                        @Embeddable
+                        public class Address {
+                            private String city;
+                            private String zipCode;
+                        }
+                        """);
 
         JavaFileObject userEntity = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.User",
-            """
-            package io.github.cyfko.example;
-            import jakarta.persistence.*;
-            
-            @Entity
-            public class User {
-                @Id
-                private Long id;
-                
-                @Embedded
-                private Address address;
-            }
-            """
-        );
+                "io.github.cyfko.example.User",
+                """
+                        package io.github.cyfko.example;
+                        import jakarta.persistence.*;
+
+                        @Entity
+                        public class User {
+                            @Id
+                            private Long id;
+
+                            @Embedded
+                            private Address address;
+                        }
+                        """);
 
         JavaFileObject validDTO = JavaFileObjects.forSourceString(
-            "io.github.cyfko.example.UserDTO",
-            """
-            package io.github.cyfko.example;
-            import io.github.cyfko.projection.*;
-            
-            @Projection(entity = User.class)
-            public class UserDTO {
-                @Projected(from = "address.city")
-                private String city;
-                
-                @Projected(from = "address.zipCode")
-                private String zipCode;
-            }
-            """
-        );
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(from = User.class)
+                        public class UserDTO {
+                            @Projected(from = "address.city")
+                            private String city;
+
+                            @Projected(from = "address.zipCode")
+                            private String zipCode;
+                        }
+                        """);
 
         Compilation compilation = Compiler.javac()
-            .withProcessors(new MetamodelProcessor())
-            .compile(userEntity, addressEmbeddable, validDTO);
+                .withProcessors(new MetamodelProcessor())
+                .compile(userEntity, addressEmbeddable, validDTO);
 
         assertThat(compilation).succeeded();
     }

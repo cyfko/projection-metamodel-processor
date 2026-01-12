@@ -525,7 +525,7 @@ public class ProjectionProcessor {
 
             for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : mirror.getElementValues()
                     .entrySet()) {
-                if (entry.getKey().getSimpleName().toString().equals("entity")) {
+                if (entry.getKey().getSimpleName().toString().equals("from")) {
                     try {
                         return (TypeMirror) entry.getValue().getValue();
                     } catch (ClassCastException e) {

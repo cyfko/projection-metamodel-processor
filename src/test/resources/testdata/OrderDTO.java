@@ -5,7 +5,7 @@ import io.github.cyfko.projection.Projection;
 
 import java.math.BigDecimal;
 
-@Projection(entity = Order.class)
+@Projection(from = Order.class)
 public class OrderDTO {
 
     private Long id;
@@ -16,9 +16,19 @@ public class OrderDTO {
     private BigDecimal amount;
 
     // Getters and setters
-    public String getOrderNumber() { return orderNumber; }
-    public void setOrderNumber(String orderNumber) { this.orderNumber = orderNumber; }
+    public String getOrderNumber() {
+        return orderNumber;
+    }
 
-    public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public void setOrderNumber(String orderNumber) {
+        this.orderNumber = orderNumber;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
 }

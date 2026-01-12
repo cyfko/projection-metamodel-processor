@@ -118,7 +118,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -146,7 +146,7 @@ class ComputationProviderTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             
-            @Projection(entity = User.class)
+            @Projection(from = User.class)
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
                 private String fullName;
@@ -189,7 +189,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -232,7 +232,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -277,7 +277,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -320,7 +320,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -365,7 +365,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -408,7 +408,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -451,7 +451,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -496,7 +496,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -539,7 +539,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -581,7 +581,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -640,7 +640,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {
                     @Provider(UserComputations1.class),
                     @Provider(UserComputations2.class)
@@ -700,7 +700,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {
                     @Provider(UserComputations1.class),
                     @Provider(UserComputations2.class)
@@ -747,7 +747,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -789,7 +789,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(value = UserComputations.class, bean = "userComputations")}
             )
             public class UserDTO {
@@ -831,7 +831,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -874,7 +874,7 @@ class ComputationProviderTest {
             import java.math.BigDecimal;
             
             @Projection(
-                entity = Product.class,
+                from = Product.class,
                 providers = {@Provider(ProductComputations.class)}
             )
             public class ProductDTO {
@@ -922,7 +922,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -980,7 +980,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {
                     @Provider(NameComputations.class),
                     @Provider(AgeComputations.class)
@@ -1029,7 +1029,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -1072,7 +1072,7 @@ class ComputationProviderTest {
             import java.math.BigDecimal;
             
             @Projection(
-                entity = Product.class,
+                from = Product.class,
                 providers = {@Provider(ProductComputations.class)}
             )
             public class ProductDTO {
@@ -1115,7 +1115,7 @@ class ComputationProviderTest {
             import java.time.LocalDateTime;
             
             @Projection(
-                entity = Order.class,
+                from = Order.class,
                 providers = {@Provider(OrderComputations.class)}
             )
             public class OrderDTO {
@@ -1144,7 +1144,7 @@ class ComputationProviderTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             
-            @Projection(entity = User.class)
+            @Projection(from = User.class)
             public class UserDTO {
                 @Computed(dependsOn = {})
                 private String computed;
@@ -1173,7 +1173,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(NonExistentComputer.class)}
             )
             public class UserDTO {
@@ -1217,7 +1217,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
@@ -1271,7 +1271,7 @@ class ComputationProviderTest {
             import io.github.cyfko.projection.*;
             
             @Projection(
-                entity = User.class,
+                from = User.class,
                 providers = {@Provider(value = UserComputations.class, bean = "userComputationsBean")}
             )
             public class UserDTO {

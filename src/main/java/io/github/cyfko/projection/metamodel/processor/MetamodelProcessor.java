@@ -63,7 +63,7 @@ public class MetamodelProcessor extends AbstractProcessor {
             AnnotationProcessorUtils.processExplicitFields(
                     dtoClass,
                     Projection.class.getCanonicalName(),
-                    (params) -> referencedEntities.add((String) params.get("entity")),
+                    (params) -> referencedEntities.add((String) params.get("from")),
                     null
             );
         }
