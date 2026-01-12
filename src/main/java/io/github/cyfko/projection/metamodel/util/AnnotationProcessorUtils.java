@@ -1,6 +1,5 @@
 package io.github.cyfko.projection.metamodel.util;
 
-
 import io.github.cyfko.projection.metamodel.model.CollectionKind;
 import io.github.cyfko.projection.metamodel.model.CollectionType;
 
@@ -18,14 +17,17 @@ import java.util.function.Consumer;
  * This class centralizes logic for:
  * </p>
  * <ul>
- *   <li>Determining collection kind and collection type for JPA-related types.</li>
- *   <li>Inspecting elements for specific annotations by fully qualified name.</li>
- *   <li>Extracting strongly-typed values from annotation mirrors using visitor APIs.</li>
- *   <li>Performing generic tasks such as capitalization of identifiers.</li>
+ * <li>Determining collection kind and collection type for JPA-related
+ * types.</li>
+ * <li>Inspecting elements for specific annotations by fully qualified
+ * name.</li>
+ * <li>Extracting strongly-typed values from annotation mirrors using visitor
+ * APIs.</li>
+ * <li>Performing generic tasks such as capitalization of identifiers.</li>
  * </ul>
  *
- * @author  Frank KOSSI
- * @since   1.0.0
+ * @author Frank KOSSI
+ * @since 1.0.0
  */
 public class AnnotationProcessorUtils {
 
@@ -46,22 +48,48 @@ public class AnnotationProcessorUtils {
             "java.util.UUID",
             "byte[]", "java.lang.Byte[]",
             "char[]", "java.lang.Character[]",
-            "byte", "short", "int", "long", "float", "double", "boolean", "char"
-    );
+            "byte", "short", "int", "long", "float", "double", "boolean", "char");
+
+    /**
+     * Returns the fully qualified type name without type-use annotations.
+     * <p>
+     * When using {@code TypeMirror.toString()}, type-use annotations such as
+     * {@code @NotNull} may be included in the output, producing invalid code like:
+     * {@code com.example.@NotNull MyClass.class}. This method extracts only the
+     * canonical type name.
+     * </p>
+     *
+     * @param type the type mirror to extract the name from
+     * @return the fully qualified type name without annotations
+     */
+    public static String getTypeNameWithoutAnnotations(TypeMirror type) {
+        if (type instanceof DeclaredType dt) {
+            Element element = dt.asElement();
+            if (element instanceof TypeElement te) {
+                return te.getQualifiedName().toString();
+            }
+        }
+        // Fallback: strip annotations using regex for primitives and other types
+        return type.toString().replaceAll("@\\S+\\s+", "");
+    }
 
     /**
      * Determines the kind of collection for the given element type.
      * <p>
      * Returns:
      * <ul>
-     * <li>{@link CollectionKind#SCALAR} if the element type is a basic JPA type or an enum.</li>
-     * <li>{@link CollectionKind#ENTITY} if the element type is annotated with @Entity.</li>
-     * <li>{@link CollectionKind#EMBEDDABLE} if the element type is annotated with @Embeddable.</li>
+     * <li>{@link CollectionKind#SCALAR} if the element type is a basic JPA type or
+     * an enum.</li>
+     * <li>{@link CollectionKind#ENTITY} if the element type is annotated
+     * with @Entity.</li>
+     * <li>{@link CollectionKind#EMBEDDABLE} if the element type is annotated
+     * with @Embeddable.</li>
      * <li>{@link CollectionKind#UNKNOWN} otherwise.</li>
      * </ul>
      * </p>
      *
-     * @param elementType the fully qualified name of the element type * @param processingEnv the processing environment
+     * @param elementType the fully qualified name of the element type * @param
+     *                    processingEnv the processing environment
      * @return the collection kind
      */
     public static CollectionKind determineCollectionKind(String elementType, ProcessingEnvironment processingEnv) {
@@ -92,9 +120,10 @@ public class AnnotationProcessorUtils {
     }
 
     /**
-     * Checks if the given element has an annotation with the specified fully qualified name.
+     * Checks if the given element has an annotation with the specified fully
+     * qualified name.
      *
-     * @param element the element to check
+     * @param element          the element to check
      * @param fqAnnotationName the fully qualified name of the annotation
      * @return true if the element has the annotation, false otherwise
      */
@@ -102,7 +131,8 @@ public class AnnotationProcessorUtils {
         return element.getAnnotationMirrors().stream()
                 .anyMatch(am -> {
                     Element annotationElement = am.getAnnotationType().asElement();
-                    return annotationElement instanceof TypeElement && ((TypeElement) annotationElement).getQualifiedName().toString().equals(fqAnnotationName);
+                    return annotationElement instanceof TypeElement
+                            && ((TypeElement) annotationElement).getQualifiedName().toString().equals(fqAnnotationName);
                 });
     }
 
@@ -119,7 +149,8 @@ public class AnnotationProcessorUtils {
      * </ul>
      * </p>
      *
-     * @param type the type mirror to check * @return the collection type */
+     * @param type the type mirror to check * @return the collection type
+     */
     public static CollectionType determineCollectionType(TypeMirror type) {
         if (!(type instanceof DeclaredType dt)) {
             return CollectionType.UNKNOWN;
@@ -137,41 +168,49 @@ public class AnnotationProcessorUtils {
     }
 
     /**
-     * Processes the explicit annotation fields for a given element and annotation type.
+     * Processes the explicit annotation fields for a given element and annotation
+     * type.
      * <p>
-     * This method searches for an annotation with the provided fully qualified name on the
-     * given element. If found, it extracts all attribute values (including nested annotations,
-     * arrays, enums and types) into a {@link Map} and passes it to the {@code ifPresent} consumer.
-     * If the annotation is not present, the optional {@code orElse} runnable is executed.
+     * This method searches for an annotation with the provided fully qualified name
+     * on the
+     * given element. If found, it extracts all attribute values (including nested
+     * annotations,
+     * arrays, enums and types) into a {@link Map} and passes it to the
+     * {@code ifPresent} consumer.
+     * If the annotation is not present, the optional {@code orElse} runnable is
+     * executed.
      * </p>
      *
      * <h3>Usage example</h3>
+     * 
      * <pre>{@code
      * ProcessorUtils.processExplicitFields(
-     *     element,
-     *     "io.github.cyfko.filterql.jpa.metamodel.Projected",
-     *     fields -> {
-     *         String from = (String) fields.get("from");
-     *         // handle explicit mapping
-     *     },
-     *     () -> {
-     *         // annotation not found on element
-     *     }
-     * );
+     *         element,
+     *         "io.github.cyfko.filterql.jpa.metamodel.Projected",
+     *         fields -> {
+     *             String from = (String) fields.get("from");
+     *             // handle explicit mapping
+     *         },
+     *         () -> {
+     *             // annotation not found on element
+     *         });
      * }</pre>
      *
      * @param element          the annotated element to inspect
      * @param fqAnnotationName the fully qualified annotation name to look for
-     * @param ifPresent        consumer invoked with a map of annotation attribute names to values when present
-     * @param orElse           runnable executed when the annotation is absent; may be {@code null}
+     * @param ifPresent        consumer invoked with a map of annotation attribute
+     *                         names to values when present
+     * @param orElse           runnable executed when the annotation is absent; may
+     *                         be {@code null}
      */
     public static void processExplicitFields(Element element,
-                                      String fqAnnotationName,
-                                      Consumer<Map<String, Object>> ifPresent,
-                                      Runnable orElse) {
+            String fqAnnotationName,
+            Consumer<Map<String, Object>> ifPresent,
+            Runnable orElse) {
         for (AnnotationMirror am : element.getAnnotationMirrors()) {
             Name qualifiedName = ((TypeElement) am.getAnnotationType().asElement()).getQualifiedName();
-            if (!qualifiedName.contentEquals(fqAnnotationName)) continue;
+            if (!qualifiedName.contentEquals(fqAnnotationName))
+                continue;
 
             Map<String, Object> fields = new HashMap<>();
 
@@ -186,7 +225,8 @@ public class AnnotationProcessorUtils {
             return;
         }
 
-        if (orElse != null) orElse.run();
+        if (orElse != null)
+            orElse.run();
     }
 
     /**
@@ -196,22 +236,24 @@ public class AnnotationProcessorUtils {
      * The visitor handles:
      * </p>
      * <ul>
-     *   <li>Nested annotations (as {@link Map} structures).</li>
-     *   <li>Arrays of annotation values (as {@link java.util.List}).</li>
-     *   <li>Class literals (represented by their fully qualified name).</li>
-     *   <li>Enum constants (represented by their simple name).</li>
-     *   <li>Strings and other primitive-compatible values.</li>
+     * <li>Nested annotations (as {@link Map} structures).</li>
+     * <li>Arrays of annotation values (as {@link java.util.List}).</li>
+     * <li>Class literals (represented by their fully qualified name).</li>
+     * <li>Enum constants (represented by their simple name).</li>
+     * <li>Strings and other primitive-compatible values.</li>
      * </ul>
      *
      * @param av the annotation value to extract
-     * @return a Java representation of the annotation value suitable for further processing
+     * @return a Java representation of the annotation value suitable for further
+     *         processing
      */
     private static Object extractValue(AnnotationValue av) {
         return av.accept(new SimpleAnnotationValueVisitor14<Object, Void>() {
             @Override
             public Object visitAnnotation(AnnotationMirror a, Void unused) {
                 Map<String, Object> nested = new HashMap<>();
-                for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : a.getElementValues().entrySet()) {
+                for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : a.getElementValues()
+                        .entrySet()) {
                     nested.put(entry.getKey().getSimpleName().toString(), extractValue(entry.getValue()));
                 }
                 return nested;
