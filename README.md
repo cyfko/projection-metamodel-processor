@@ -40,7 +40,7 @@ The annotation processor will be automatically detected and executed during comp
 
 ### 1. Define Your JPA Entities
 
-The processor analyzes only the `@Entity` and `@Embeddable` classes referenced by the `entity` attribute of your `@Projection` annotations (and their related embeddables):
+The processor analyzes only the `@Entity` and `@Embeddable` classes referenced by the `from` attribute of your `@Projection` annotations (and their related embeddables):
 
 ```java
 @Entity
@@ -75,7 +75,7 @@ Use the `@Projection`, `@Projected`, and `@Computed` annotations to define your 
 
 ```java
 @Projection(
-    entity = User.class,
+    from = User.class,
     providers = {
         @Provider(value = UserComputations.class)
     }
@@ -111,7 +111,7 @@ public class UserDTO {
 ```
 
 **Note:**
-- Only entities referenced in the `entity` attribute of `@Projection` are scanned for projection purposes.
+- Only entities referenced in the `from` attribute of `@Projection` are scanned for projection purposes.
 - All fields in a class annotated with `@Projection` are implicitly considered as if annotated with `@Projected`, unless explicitly annotated otherwise.
 
 
@@ -144,7 +144,7 @@ public class ExternalComputer {
     }
 }
 
-@Projection(entity = User.class)
+@Projection(from = User.class)
 public class UserDTO {
     @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames"))
     private String displayName;
@@ -214,7 +214,7 @@ ProjectionMetadata projectionMeta = ProjectionRegistry.getMetadataFor(UserDTO.cl
 The processor automatically detects collections and extracts their metadata:
 
 ```java
-@Projection(entity = User.class)
+@Projection(from = User.class)
 public class UserDTO {
     
     @Projected(from = "orders")
@@ -231,7 +231,7 @@ You can use Spring beans for computation providers:
 
 ```java
 @Projection(
-    entity = User.class,
+    from = User.class,
     providers = {
         @Provider(value = DateFormatter.class, bean = "isoDateFormatter")
     }
@@ -276,7 +276,7 @@ Annotation described here is a reminder of the [Projection Specification](https:
 Class-level annotation that declares a DTO projection.
 
 **Parameters:**
-- `entity`: The source JPA entity class (required)
+- `from`: The source JPA entity class (required)
 - `providers`: Array of computation providers (optional)
 
 ### `@Projected`
