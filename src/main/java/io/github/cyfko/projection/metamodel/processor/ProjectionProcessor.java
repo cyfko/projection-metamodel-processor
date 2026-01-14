@@ -237,9 +237,25 @@ public class ProjectionProcessor {
                         String computedByClass = computedBy != null ? (String) computedBy.get("type") : null;
                         String computedByMethod = computedBy != null ? (String) computedBy.get("method") : null;
 
+                        // Extract reducers
+                        @SuppressWarnings("unchecked")
+                        List<String> reducersList = (List<String>) params.get("reducers");
+                        String[] reducers = reducersList != null ? reducersList.toArray(new String[0]) : new String[0];
+
+                        // Validate reducers: each collection dependency MUST have a reducer
+                        List<String> collectionDeps = findCollectionDependencies(entityClassName, dependencies);
+                        if (!collectionDeps.isEmpty() && reducers.length != collectionDeps.size()) {
+                            messager.printMessage(Diagnostic.Kind.ERROR,
+                                    String.format("Computed field '%s': reducers count (%d) must match " +
+                                            "collection dependency count (%d). Collection dependencies: %s",
+                                            dtoField, reducers.length, collectionDeps.size(), collectionDeps),
+                                    dtoClass);
+                            return;
+                        }
+
                         // Validate that compute method exist in any of provided computation providers
                         SimpleComputedField field = new SimpleComputedField(dtoField,
-                                dependencies.toArray(new String[0]), computedByClass, computedByMethod);
+                                dependencies.toArray(new String[0]), reducers, computedByClass, computedByMethod);
                         String errMessage = validateComputeMethod(field, enclosedElement.asType(), computers,
                                 depsToFqcnMapping);
                         if (errMessage != null) {
@@ -251,7 +267,8 @@ public class ProjectionProcessor {
                         // Everything OK ! then record this compute field!
                         computedFields.add(field);
                         messager.printMessage(Diagnostic.Kind.NOTE,
-                                "  🧮 " + dtoField + " ← [" + String.join(", ", dependencies) + "]");
+                                "  🧮 " + dtoField + " ← [" + String.join(", ", dependencies) + "]" +
+                                        (reducers.length > 0 ? " ⬇ [" + String.join(", ", reducers) + "]" : ""));
                     },
                     null);
         }
@@ -669,6 +686,75 @@ public class ProjectionProcessor {
     }
 
     /**
+     * Finds all dependencies that traverse a collection in their path.
+     * <p>
+     * A dependency like {@code "orders.total"} is a collection dependency if
+     * {@code orders} is a {@code @OneToMany} or {@code @ManyToMany} relationship.
+     * A dependency like {@code "address.city"} is NOT a collection if
+     * {@code address}
+     * is an {@code @Embedded} or {@code @ManyToOne}.
+     * </p>
+     *
+     * @param entityClassName the root entity class name
+     * @param dependencies    the list of dependency paths to check
+     * @return list of dependency paths that traverse at least one collection
+     */
+    private List<String> findCollectionDependencies(String entityClassName, List<String> dependencies) {
+        List<String> collectionDeps = new ArrayList<>();
+        for (String dependency : dependencies) {
+            if (isCollectionPath(entityClassName, dependency)) {
+                collectionDeps.add(dependency);
+            }
+        }
+        return collectionDeps;
+    }
+
+    /**
+     * Checks if a path traverses a collection at any segment.
+     *
+     * @param entityClassName the root entity class name
+     * @param path            the dependency path (e.g., "orders.total")
+     * @return true if any intermediate segment is a collection
+     */
+    private boolean isCollectionPath(String entityClassName, String path) {
+        if (!path.contains(".")) {
+            return false;
+        }
+
+        Map<String, Map<String, EntityProcessor.SimplePersistenceMetadata>> entityRegistry = entityProcessor
+                .getRegistry();
+        Map<String, Map<String, EntityProcessor.SimplePersistenceMetadata>> embeddableRegistry = entityProcessor
+                .getEmbeddableRegistry();
+
+        String[] segments = path.split("\\.");
+        String currentClassName = entityClassName;
+
+        // Check all segments except the last one
+        for (int i = 0; i < segments.length - 1; i++) {
+            Map<String, EntityProcessor.SimplePersistenceMetadata> currentMetadata = entityRegistry
+                    .get(currentClassName);
+            if (currentMetadata == null) {
+                currentMetadata = embeddableRegistry.get(currentClassName);
+            }
+            if (currentMetadata == null) {
+                return false;
+            }
+
+            EntityProcessor.SimplePersistenceMetadata fieldMetadata = currentMetadata.get(segments[i]);
+            if (fieldMetadata == null) {
+                return false;
+            }
+
+            if (fieldMetadata.isCollection()) {
+                return true; // Found a collection in the path
+            }
+
+            currentClassName = fieldMetadata.relatedType();
+        }
+        return false;
+    }
+
+    /**
      * Writes the body of the generated
      * {@code ProjectionMetadataRegistryProviderImpl} class
      * to the given writer.
@@ -808,19 +894,28 @@ public class ProjectionProcessor {
                 .map(d -> "\"" + d + "\"")
                 .collect(Collectors.joining(", "));
 
+        String reds = Arrays.stream(f.reducers())
+                .map(r -> "\"" + r + "\"")
+                .collect(Collectors.joining(", "));
+
         if (f.methodClass == null && f.methodName == null) {
             return String.format(
-                    "                    new ComputedField(\"%s\", new String[]{%s})",
+                    "                    new ComputedField(\"%s\", new String[]{%s}, new String[]{%s})",
                     f.dtoField(),
-                    deps);
+                    deps,
+                    reds);
         }
 
+        String classArg = f.methodClass != null ? f.methodClass + ".class" : "null";
+        String methodArg = f.methodName != null && !f.methodName.isBlank() ? "\"" + f.methodName + "\"" : "null";
+
         return String.format(
-                "                    new ComputedField(\"%s\", new String[]{%s}, %s, %s)",
+                "                    new ComputedField(\"%s\", new String[]{%s}, new String[]{%s}, %s, %s)",
                 f.dtoField(),
                 deps,
-                f.methodClass == null ? null : f.methodClass + ".class",
-                f.methodName == null || f.methodName.isBlank() ? null : "\"" + f.methodName + "\"");
+                reds,
+                classArg,
+                methodArg);
     }
 
     /**
@@ -918,8 +1013,15 @@ public class ProjectionProcessor {
     /**
      * Lightweight value object describing a computed field view on annotation
      * processor.
+     *
+     * @param dtoField     the DTO field name
+     * @param dependencies the dependency paths
+     * @param reducers     the reducer names for collection dependencies
+     * @param methodClass  the method class, if specified
+     * @param methodName   the method name, if specified
      */
-    record SimpleComputedField(String dtoField, String[] dependencies, String methodClass, String methodName) {
+    record SimpleComputedField(String dtoField, String[] dependencies, String[] reducers, String methodClass,
+            String methodName) {
     }
 
     /**
