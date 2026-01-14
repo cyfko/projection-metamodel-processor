@@ -652,7 +652,16 @@ public class ProjectionProcessor {
 
                 currentClassName = fieldMetadata.relatedType();
             } else if (withFqcn != null) {
-                withFqcn.accept(fieldMetadata.relatedType());
+                // For collections, return the full parameterized type (e.g.,
+                // java.util.List<User>)
+                if (fieldMetadata.isCollection() && fieldMetadata.collection().isPresent()) {
+                    String fullType = buildCollectionTypeName(
+                            fieldMetadata.collection().get().collectionType(),
+                            fieldMetadata.relatedType());
+                    withFqcn.accept(fullType);
+                } else {
+                    withFqcn.accept(fieldMetadata.relatedType());
+                }
             }
         }
 
@@ -830,6 +839,29 @@ public class ProjectionProcessor {
     private String getSimpleName(String fqcn) {
         int lastDot = fqcn.lastIndexOf('.');
         return lastDot >= 0 ? fqcn.substring(lastDot + 1) : fqcn;
+    }
+
+    /**
+     * Builds the fully qualified parameterized collection type name from the
+     * collection type enum and element type.
+     * <p>
+     * For example, given {@code CollectionType.LIST} and {@code "io.example.User"},
+     * returns {@code "java.util.List<io.example.User>"}.
+     * </p>
+     *
+     * @param collectionType the type of collection (LIST, SET, MAP, COLLECTION)
+     * @param elementType    the fully qualified element type name
+     * @return the full parameterized type string
+     */
+    private String buildCollectionTypeName(CollectionType collectionType, String elementType) {
+        String containerClass = switch (collectionType) {
+            case LIST -> "java.util.List";
+            case SET -> "java.util.Set";
+            case MAP -> "java.util.Map";
+            case COLLECTION -> "java.util.Collection";
+            case UNKNOWN -> "java.util.Collection";
+        };
+        return containerClass + "<" + elementType + ">";
     }
 
     /**
