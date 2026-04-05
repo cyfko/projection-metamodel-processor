@@ -180,7 +180,7 @@ class ReducersValidationTest {
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
                         public interface CompanyDTO {
-                            @Computed(dependsOn = {"departments.budget"}, reducers = {"SUM"})
+                            @Computed(dependsOn = {"departments.budget:SUM"})
                             BigDecimal getTotalBudget();
                         }
                         """);
@@ -207,8 +207,7 @@ class ReducersValidationTest {
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
                         public interface CompanyDTO {
                             @Computed(
-                                dependsOn = {"departments.budget", "departments.employees.salary"},
-                                reducers = {"SUM"}
+                                dependsOn = {"departments.budget:SUM", "departments.employees.salary"}
                             )
                             BigDecimal getTotalCost();
                         }
@@ -235,8 +234,7 @@ class ReducersValidationTest {
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
                         public interface CompanyDTO {
                             @Computed(
-                                dependsOn = {"departments.budget", "departments.employees.salary"},
-                                reducers = {"SUM", "AVG"}
+                                dependsOn = {"departments.budget:SUM", "departments.employees.salary:AVG"}
                             )
                             BigDecimal getTotalCost();
                         }
@@ -290,8 +288,7 @@ class ReducersValidationTest {
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
                         public interface CompanyDTO {
                             @Computed(
-                                dependsOn = {"name", "departments.budget"},
-                                reducers = {"SUM"}
+                                dependsOn = {"name", "departments.budget:SUM"}
                             )
                             String getSummary();
                         }
@@ -319,7 +316,7 @@ class ReducersValidationTest {
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
                         public interface CompanyDTO {
-                            @Computed(dependsOn = {"departments.budget"}, reducers = {"SUM"})
+                            @Computed(dependsOn = {"departments.budget:SUM"})
                             BigDecimal getTotalBudget();
                         }
                         """);
@@ -356,8 +353,7 @@ class ReducersValidationTest {
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
                         public interface CompanyDTO {
                             @Computed(
-                                dependsOn = {"departments.budget", "departments.employees.salary"},
-                                reducers = {"SUM", "AVG"}
+                                dependsOn = {"departments.budget:SUM", "departments.employees.salary:AVG"}
                             )
                             BigDecimal getStats();
                         }

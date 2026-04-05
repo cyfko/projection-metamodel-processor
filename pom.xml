@@ -53,8 +53,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Dependencies Versions -->
-        <projection-spec.version>2.0.0-SNAPSHOT</projection-spec.version>
-        <projection-metamodel.version>2.0.1-SNAPSHOT</projection-metamodel.version>
+        <projection-spec.version>3.0.0-SNAPSHOT</projection-spec.version>
+        <projection-metamodel.version>3.0.0-SNAPSHOT</projection-metamodel.version>
         <auto-service.version>1.1.1</auto-service.version>
         <jakarta-persistence.version>3.1.0</jakarta-persistence.version>
         <junit.version>5.10.3</junit.version>
@@ -77,14 +77,14 @@
         <dependency>
             <groupId>io.github.cyfko</groupId>
             <artifactId>projection-spec</artifactId>
-            <version>2.0.0</version>
+            <version>${projection-spec.version}</version>
         </dependency>
 
-        <!-- Projection specification -->
+        <!-- Projection metamodel (runtime records) -->
         <dependency>
             <groupId>io.github.cyfko</groupId>
             <artifactId>jpa-projection-metamodel</artifactId>
-            <version>2.0.1</version>
+            <version>${projection-metamodel.version}</version>
         </dependency>
 
         <!-- Annotation Processing -->

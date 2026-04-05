@@ -2,6 +2,8 @@ package io.github.cyfko.jpametamodel.processor;
 
 import io.github.cyfko.jpametamodel.providers.ProjectionRegistryProvider;
 import io.github.cyfko.projection.Computed;
+import io.github.cyfko.projection.ExposedAs;
+import io.github.cyfko.projection.Exposure;
 import io.github.cyfko.projection.Projected;
 import io.github.cyfko.projection.Projection;
 import io.github.cyfko.jpametamodel.api.CollectionKind;
@@ -207,7 +209,10 @@ public class ProjectionProcessor {
                     params -> {
                         // validate entity field path
                         String entityField = params.get("from").toString();
-                        insertDirectMapping(methodElement, entityClassName, entityField, directMappings);
+                        // Read new v3 attributes
+                        String asValue = params.containsKey("as") ? params.get("as").toString() : "";
+                        boolean cycleBreak = params.containsKey("cycleBreak") && Boolean.TRUE.equals(params.get("cycleBreak"));
+                        insertDirectMapping(methodElement, entityClassName, entityField, asValue, cycleBreak, directMappings);
                     },
                     () -> {
                         // Automatically consider this method if it is not a @Computed field and start
@@ -218,7 +223,7 @@ public class ProjectionProcessor {
                             return;
                         }
                         name = toJavaNamingAwareFieldName(methodElement);
-                        insertDirectMapping(methodElement, entityClassName, name, directMappings);
+                        insertDirectMapping(methodElement, entityClassName, name, "", false, directMappings);
                     });
 
             // Process computed fields
@@ -228,14 +233,32 @@ public class ProjectionProcessor {
                         String dtoField = toJavaNamingAwareFieldName(methodElement);
 
                         @SuppressWarnings("unchecked")
-                        List<String> dependencies = (List<String>) params.get("dependsOn");
+                        List<String> rawDependsOn = (List<String>) params.get("dependsOn");
 
                         // Validate DTO field exists
-                        if (dependencies.isEmpty()) {
+                        if (rawDependsOn.isEmpty()) {
                             messager.printMessage(Diagnostic.Kind.ERROR, String.format(
                                     "@Computed method '%s' does not declare any dependency in %s",
                                     dtoClass.getSimpleName(), dtoClass));
                             return;
+                        }
+
+                        // Parse inline :REDUCER syntax (v3.0.0)
+                        List<String> dependencies = new ArrayList<>();
+                        List<int[]> inlineReducers = new ArrayList<>(); // [index, -1] placeholder
+                        List<String> inlineReducerNames = new ArrayList<>();
+                        for (int ri = 0; ri < rawDependsOn.size(); ri++) {
+                            String raw = rawDependsOn.get(ri);
+                            int colonIdx = raw.indexOf(':');
+                            if (colonIdx > 0) {
+                                String path = raw.substring(0, colonIdx);
+                                String reducer = raw.substring(colonIdx + 1);
+                                dependencies.add(path);
+                                inlineReducers.add(new int[]{dependencies.size() - 1});
+                                inlineReducerNames.add(reducer);
+                            } else {
+                                dependencies.add(raw);
+                            }
                         }
 
                         // Validate all dependencies exist in entity
@@ -259,10 +282,12 @@ public class ProjectionProcessor {
                         String thenClass = thenProp != null ? (String) thenProp.get("type") : null;
                         String thenMethod = thenProp != null ? (String) thenProp.get("value") : null;
 
-                        // Extract reducers
-                        @SuppressWarnings("unchecked")
-                        var reducersList = (List<String>) params.get("reducers");
-                        var reducerNames = reducersList != null ? reducersList.toArray(new String[0]) : new String[0];
+                        // Build reducers from inline parsing
+                        var reducerNames = inlineReducerNames.toArray(new String[0]);
+                        int[] reducerIndices = new int[inlineReducers.size()];
+                        for (int i = 0; i < inlineReducers.size(); i++) {
+                            reducerIndices[i] = inlineReducers.get(i)[0];
+                        }
 
                         // Validate reducers: each collection dependency MUST have a reducer
                         List<String> collectionDeps = findCollectionDependencies(entityClassName, dependencies);
@@ -273,13 +298,6 @@ public class ProjectionProcessor {
                                             dtoField, reducerNames.length, collectionDeps.size(), collectionDeps),
                                     dtoClass);
                             return;
-                        }
-
-                        // Build reducer indices (index of each collection dependency in the
-                        // dependencies array)
-                        int[] reducerIndices = new int[collectionDeps.size()];
-                        for (int i = 0; i < collectionDeps.size(); i++) {
-                            reducerIndices[i] = dependencies.indexOf(collectionDeps.get(i));
                         }
 
                         // Validate that compute method exist in any of provided computation providers
@@ -311,12 +329,29 @@ public class ProjectionProcessor {
                     null);
         }
 
+        // === Collect @ExposedAs criteria and composed criteria ===
+        List<SimpleExposedCriterion> allCriteria = collectCriteria(dtoClass, "", "", new LinkedHashSet<>());
+
+        // === Read @Exposure on the DTO ===
+        final SimpleExposureMetadata[] exposureHolder = {null};
+        AnnotationProcessorUtils.processExplicitFields(dtoClass,
+                Exposure.class.getName(),
+                expFields -> {
+                    String expValue = expFields.containsKey("value") ? expFields.get("value").toString() : "";
+                    String expNamespace = expFields.containsKey("namespace") ? expFields.get("namespace").toString() : "";
+                    String expStrategy = expFields.containsKey("strategy") ? expFields.get("strategy").toString() : "WINDOWED";
+                    exposureHolder[0] = new SimpleExposureMetadata(expValue, expNamespace, expStrategy);
+                },
+                null);
+
         // Store metadata
         SimpleProjectionMetadata metadata = new SimpleProjectionMetadata(
                 entityClassName,
                 directMappings,
                 computedFields,
-                computers.toArray(SimpleComputationProvider[]::new));
+                computers.toArray(SimpleComputationProvider[]::new),
+                allCriteria,
+                exposureHolder[0]);
 
         projectionRegistry.put(dtoFqcn, metadata);
     }
@@ -333,6 +368,8 @@ public class ProjectionProcessor {
     private void insertDirectMapping(ExecutableElement dtoMethod,
             String entityClassName,
             String entityField,
+            String asValue,
+            boolean cycleBreak,
             List<SimpleDirectMapping> directMappings) {
         Messager messager = this.processingEnv.getMessager();
         if (!dtoMethod.getParameters().isEmpty()) {
@@ -351,19 +388,46 @@ public class ProjectionProcessor {
         boolean isCollection = isCollection(dtoType);
         TypeElement itemType = resolveRelatedType(dtoType, isCollection);
 
+        // Determine logicalPrefix for composed criterion inheritance
+        Optional<String> logicalPrefix = Optional.empty();
+        String dtoFieldTypeFqcn;
+
+        if (isCollection) {
+            dtoFieldTypeFqcn = itemType.asType().toString();
+        } else {
+            dtoFieldTypeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dtoType);
+        }
+
+        // Check if the return type is itself a @Projection type
+        TypeElement returnTypeElement = elementUtils.getTypeElement(dtoFieldTypeFqcn);
+        boolean isProjectionType = returnTypeElement != null &&
+                AnnotationProcessorUtils.hasAnnotation(returnTypeElement, Projection.class.getName());
+
+        if (isProjectionType) {
+            if (asValue != null && !asValue.isBlank()) {
+                logicalPrefix = Optional.of(asValue);
+            } else {
+                logicalPrefix = Optional.of(StringUtils.toScreamingSnakeCase(dtoMethod.getSimpleName().toString()));
+            }
+        }
+
         if (isCollection) {
             DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(dtoType, itemType);
             directMappings.add(new SimpleDirectMapping(
                     dtoName,
                     entityField,
-                    itemType.asType().toString(),
-                    Optional.of(collectionMetadata)));
+                    dtoFieldTypeFqcn,
+                    Optional.of(collectionMetadata),
+                    logicalPrefix,
+                    cycleBreak));
         } else {
             directMappings.add(new SimpleDirectMapping(
                     dtoName,
                     entityField,
-                    AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dtoType),
-                    Optional.empty()));
+                    dtoFieldTypeFqcn,
+                    Optional.empty(),
+                    logicalPrefix,
+                    cycleBreak));
         }
 
         messager.printNote("  ✅ " + dtoName + " → " + entityField);
@@ -1076,7 +1140,26 @@ public class ProjectionProcessor {
             sb.append(formatComputerProvider(metadata.computers()[i]));
             sb.append(i < metadata.computers().length - 1 ? ",\n" : "\n");
         }
-        sb.append("                }\n");
+        sb.append("                },\n");
+
+        // ExposedCriterion[]
+        sb.append("                new ExposedCriterion[]{");
+        if (!metadata.exposedCriteria().isEmpty()) {
+            sb.append("\n");
+            for (int i = 0; i < metadata.exposedCriteria().size(); i++) {
+                sb.append(formatExposedCriterion(metadata.exposedCriteria().get(i)));
+                sb.append(i < metadata.exposedCriteria().size() - 1 ? ",\n" : "\n");
+            }
+            sb.append("                ");
+        }
+        sb.append("},\n");
+
+        // ExposureMetadata (nullable)
+        if (metadata.exposure() != null) {
+            sb.append(formatExposureMetadata(metadata.exposure())).append("\n");
+        } else {
+            sb.append("                null\n");
+        }
 
         sb.append("            )\n");
         sb.append("        );\n");
@@ -1096,9 +1179,33 @@ public class ProjectionProcessor {
         String collection = m.collection()
                 .map(c -> "Optional.of(" + c.asInstance() + ")")
                 .orElse("Optional.empty()");
+        String logicalPrefix = m.logicalPrefix()
+                .map(p -> "Optional.of(\"" + p + "\")")
+                .orElse("Optional.empty()");
         return String.format(
-                "                    new DirectMapping(\"%s\", \"%s\", %s.class, %s)",
-                m.dtoField(), m.entityField(), m.dtoFieldType(), collection);
+                "                    new DirectMapping(\"%s\", \"%s\", %s.class, %s, %s, %s)",
+                m.dtoField(), m.entityField(), m.dtoFieldType(), collection, logicalPrefix, m.cycleBreak());
+    }
+
+    /**
+     * Formats an ExposedCriterion for code generation.
+     */
+    private String formatExposedCriterion(SimpleExposedCriterion c) {
+        String operators = Arrays.stream(c.operators())
+                .map(o -> "\"" + o + "\"")
+                .collect(Collectors.joining(", "));
+        return String.format(
+                "                    new ExposedCriterion(\"%s\", \"%s\", new String[]{%s}, %s, %s)",
+                c.ref(), c.sourcePath(), operators, c.exposed(), c.composed());
+    }
+
+    /**
+     * Formats an ExposureMetadata for code generation.
+     */
+    private String formatExposureMetadata(SimpleExposureMetadata e) {
+        return String.format(
+                "                new ExposureMetadata(\"%s\", \"%s\", \"%s\")",
+                e.value(), e.namespace(), e.strategy());
     }
 
     /**
@@ -1224,21 +1331,11 @@ public class ProjectionProcessor {
     public record SimpleDirectMapping(String dtoField,
             String entityField,
             String dtoFieldType,
-            Optional<DirectMapping.CollectionMetadata> collection) {
+            Optional<DirectMapping.CollectionMetadata> collection,
+            Optional<String> logicalPrefix,
+            boolean cycleBreak) {
     }
 
-    /**
-     * Lightweight value object describing a computed field view on annotation processor.
-     *
-     * @param dtoField            the DTO field name
-     * @param dependencies        the dependency paths
-     * @param reducerIndices      the indices of dependencies that have reducers
-     * @param reducerNames        the reducer names corresponding to each index
-     * @param computedByClass     the computedBy method class, if specified
-     * @param computedByMethod    the computedBy method name, if specified
-     * @param thenClass           the then method class, if specified (NOUVEAU)
-     * @param thenMethod          the then method name, if specified (NOUVEAU)
-     */
     record SimpleComputedField(
             String dtoField,
             String[] dependencies,
@@ -1250,31 +1347,213 @@ public class ProjectionProcessor {
             String thenMethod
     ) { }
 
-    /**
-     * Aggregated projection metadata used internally by the processor before being
-     * written
-     * to generated source code.
-     *
-     * @param entityClass    the fully qualified name of the projected JPA entity
-     * @param directMappings the list of direct property mappings
-     * @param computedFields the list of computed fields with their dependencies
-     * @param computers      the computation provider descriptors used for
-     *                       evaluating computed fields
-     */
     public record SimpleProjectionMetadata(String entityClass,
             List<SimpleDirectMapping> directMappings,
             List<SimpleComputedField> computedFields,
-            SimpleComputationProvider[] computers) {
+            SimpleComputationProvider[] computers,
+            List<SimpleExposedCriterion> exposedCriteria,
+            SimpleExposureMetadata exposure) {
+    }
+
+    public record SimpleComputationProvider(String className, String bean) {
+    }
+
+    record SimpleExposedCriterion(
+            String ref,
+            String sourcePath,
+            String[] operators,
+            boolean exposed,
+            boolean composed
+    ) { }
+
+    record SimpleExposureMetadata(
+            String value,
+            String namespace,
+            String strategy
+    ) { }
+
+    // ========================= COMPOSED CRITERION INHERITANCE =========================
+
+    /**
+     * Recursively collects all ExposedCriterion for a @Projection type.
+     * <p>
+     * Direct criteria come from @ExposedAs on scalar fields.
+     * Composed criteria are inherited from @Projection-typed fields (via @Projected(as)).
+     * </p>
+     *
+     * @param projectionType  the DTO type to collect criteria from
+     * @param parentPrefix    accumulated prefix (empty for root)
+     * @param parentEntityPath accumulated entity path (empty for root)
+     * @param visited         set of visited type FQCNs for cycle detection
+     * @return list of all criteria (direct + composed)
+     */
+    private List<SimpleExposedCriterion> collectCriteria(
+            TypeElement projectionType,
+            String parentPrefix,
+            String parentEntityPath,
+            Set<String> visited) {
+
+        String typeFqcn = projectionType.getQualifiedName().toString();
+        Messager messager = processingEnv.getMessager();
+
+        if (visited.contains(typeFqcn)) {
+            messager.printError(
+                    String.format("Bidirectional projection cycle without cycleBreak: %s. " +
+                                    "Fix: Annotate the field with @Projected(cycleBreak = true).",
+                            String.join(" → ", visited) + " → " + typeFqcn),
+                    projectionType);
+            return List.of();
+        }
+
+        visited.add(typeFqcn);
+        List<SimpleExposedCriterion> result = new ArrayList<>();
+        Map<String, String> usedPrefixes = new HashMap<>(); // prefix → methodName (conflict detection)
+
+        for (Element el : projectionType.getEnclosedElements()) {
+            if (el.getKind() != ElementKind.METHOD) continue;
+            ExecutableElement method = (ExecutableElement) el;
+            Set<Modifier> mods = method.getModifiers();
+            if (mods.contains(Modifier.STATIC) || mods.contains(Modifier.PRIVATE)) continue;
+
+            TypeMirror returnType = method.getReturnType();
+            String returnTypeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(returnType);
+            TypeElement returnTypeElement = elementUtils.getTypeElement(returnTypeFqcn);
+            boolean isProjectionReturnType = returnTypeElement != null &&
+                    AnnotationProcessorUtils.hasAnnotation(returnTypeElement, Projection.class.getName());
+
+            // Check for @ExposedAs on this method
+            AnnotationProcessorUtils.processExplicitFields(method,
+                    ExposedAs.class.getName(),
+                    params -> {
+                        // Forbidden: @ExposedAs on @Projection return type
+                        if (isProjectionReturnType) {
+                            messager.printError(
+                                    String.format("@ExposedAs is not allowed on %s#%s(). " +
+                                                    "Reason: %s is a @Projection type. " +
+                                                    "Fix: Remove @ExposedAs. The queryable properties are inherited automatically.",
+                                            projectionType.getSimpleName(), method.getSimpleName(), returnTypeFqcn),
+                                    method);
+                            return;
+                        }
+
+                        String refValue = params.containsKey("value") && !params.get("value").toString().isBlank()
+                                ? params.get("value").toString()
+                                : StringUtils.toScreamingSnakeCase(method.getSimpleName().toString());
+
+                        // Validate SCREAMING_SNAKE_CASE format
+                        if (!refValue.matches(StringUtils.SCREAMING_SNAKE_PATTERN)) {
+                            messager.printError(
+                                    String.format("Invalid @ExposedAs value \"%s\" on %s#%s(). " +
+                                                    "Criterion names must follow strict SCREAMING_SNAKE_CASE format. " +
+                                                    "Expected pattern: %s",
+                                            refValue, projectionType.getSimpleName(), method.getSimpleName(),
+                                            StringUtils.SCREAMING_SNAKE_PATTERN),
+                                    method);
+                            return;
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        List<String> ops = params.containsKey("operators")
+                                ? (List<String>) params.get("operators")
+                                : List.of();
+                        boolean exposed = !params.containsKey("exposed") || Boolean.TRUE.equals(params.get("exposed"));
+
+                        // Resolve entity path for this method
+                        String entityPath = resolveEntityPathForMethod(method, projectionType);
+
+                        String fullRef;
+                        String fullPath;
+                        boolean composed;
+                        if (parentPrefix.isEmpty()) {
+                            fullRef = refValue;
+                            fullPath = entityPath;
+                            composed = false;
+                        } else {
+                            fullRef = parentPrefix + "__" + refValue;
+                            fullPath = parentEntityPath + "." + entityPath;
+                            composed = true;
+                        }
+
+                        result.add(new SimpleExposedCriterion(
+                                fullRef, fullPath, ops.toArray(new String[0]), exposed, composed));
+                    },
+                    null);
+
+            // Check for composed criterion inheritance (return type is @Projection)
+            if (isProjectionReturnType) {
+                // Read @Projected attributes for this method
+                final String[] asHolder = {""};
+                final boolean[] cycleBreakHolder = {false};
+                AnnotationProcessorUtils.processExplicitFields(method,
+                        Projected.class.getName(),
+                        params -> {
+                            asHolder[0] = params.containsKey("as") ? params.get("as").toString() : "";
+                            cycleBreakHolder[0] = params.containsKey("cycleBreak") && Boolean.TRUE.equals(params.get("cycleBreak"));
+                        },
+                        null);
+
+                if (cycleBreakHolder[0]) {
+                    continue; // Do not recurse
+                }
+
+                // Determine prefix
+                String prefix;
+                if (asHolder[0] != null && !asHolder[0].isBlank()) {
+                    prefix = asHolder[0];
+                } else {
+                    prefix = StringUtils.toScreamingSnakeCase(method.getSimpleName().toString());
+                }
+
+                // Check prefix conflict
+                if (usedPrefixes.containsKey(prefix)) {
+                    messager.printError(
+                            String.format("Duplicate composed criterion prefix \"%s\" in %s. " +
+                                            "Defined by: %s(), %s(). " +
+                                            "Fix: Provide distinct values for the 'as' attribute.",
+                                    prefix, projectionType.getSimpleName(),
+                                    usedPrefixes.get(prefix), method.getSimpleName()),
+                            method);
+                    continue;
+                }
+                usedPrefixes.put(prefix, method.getSimpleName().toString());
+
+                // Resolve child entity path
+                String childEntityPath = resolveEntityFieldForMethod(method, projectionType);
+
+                String fullPrefix = parentPrefix.isEmpty() ? prefix : parentPrefix + "__" + prefix;
+                String fullEntityPath = parentEntityPath.isEmpty() ? childEntityPath : parentEntityPath + "." + childEntityPath;
+
+                // Recurse
+                List<SimpleExposedCriterion> childCriteria = collectCriteria(
+                        returnTypeElement, fullPrefix, fullEntityPath, visited);
+                result.addAll(childCriteria);
+            }
+        }
+
+        visited.remove(typeFqcn); // backtrack for DFS
+        return result;
     }
 
     /**
-     * Describes a computation provider class and the bean name used to obtain its
-     * instance.
-     *
-     * @param className the fully qualified provider class name
-     * @param bean      the bean identifier used to resolve the provider in the
-     *                  runtime container
+     * Resolves the entity field path for a method, by checking @Projected(from) or deriving from method name.
      */
-    public record SimpleComputationProvider(String className, String bean) {
+    private String resolveEntityPathForMethod(ExecutableElement method, TypeElement dtoClass) {
+        final String[] entityPath = {null};
+        AnnotationProcessorUtils.processExplicitFields(method,
+                Projected.class.getName(),
+                params -> entityPath[0] = params.get("from").toString(),
+                null);
+        if (entityPath[0] != null) {
+            return entityPath[0];
+        }
+        // Fallback: derive from method name
+        return toJavaNamingAwareFieldName(method);
+    }
+
+    /**
+     * Resolves the entity field for a @Projected method (for composed criterion path building).
+     */
+    private String resolveEntityFieldForMethod(ExecutableElement method, TypeElement dtoClass) {
+        return resolveEntityPathForMethod(method, dtoClass);
     }
 }

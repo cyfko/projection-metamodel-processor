@@ -139,6 +139,59 @@ public class StringUtils {
     }
 
     /**
+     * Regex pattern for valid SCREAMING_SNAKE_CASE identifiers.
+     * Used to validate {@code @ExposedAs(value)} and {@code @Projected(as)} values.
+     */
+    public static final String SCREAMING_SNAKE_PATTERN = "[A-Z][A-Z0-9]*(_[A-Z][A-Z0-9]*)*";
+
+    /**
+     * Converts a camelCase or method name to SCREAMING_SNAKE_CASE.
+     * <p>
+     * If the input starts with "get" or "is", the prefix is stripped first.
+     * </p>
+     * <p>Examples:</p>
+     * <ul>
+     *   <li>{@code getSourceSite → SOURCE_SITE}</li>
+     *   <li>{@code sourceSite → SOURCE_SITE}</li>
+     *   <li>{@code getUnitModel → UNIT_MODEL}</li>
+     *   <li>{@code getId → ID}</li>
+     * </ul>
+     *
+     * @param input the camelCase or getter-style method name
+     * @return the SCREAMING_SNAKE_CASE equivalent
+     */
+    public static String toScreamingSnakeCase(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        // Strip getter prefix
+        String name = input;
+        if (name.startsWith("get") && name.length() > 3 && Character.isUpperCase(name.charAt(3))) {
+            name = name.substring(3);
+        } else if (name.startsWith("is") && name.length() > 2 && Character.isUpperCase(name.charAt(2))) {
+            name = name.substring(2);
+        }
+
+        // Insert underscore before each uppercase letter preceded by a lowercase letter or digit
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (i > 0 && Character.isUpperCase(c)) {
+                char prev = name.charAt(i - 1);
+                if (Character.isLowerCase(prev) || Character.isDigit(prev)) {
+                    sb.append('_');
+                } else if (i + 1 < name.length() && Character.isLowerCase(name.charAt(i + 1))) {
+                    // Handle acronyms: "URLPath" → "URL_PATH"
+                    sb.append('_');
+                }
+            }
+            sb.append(Character.toUpperCase(c));
+        }
+        return sb.toString();
+    }
+
+    /**
      * Returns the qualified name of the element for error messages.
      */
     public static String getQualifiedName(ExecutableElement ee) {
