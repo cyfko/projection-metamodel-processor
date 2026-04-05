@@ -170,7 +170,7 @@ The processor validates:
 - That the number of reducers matches the number of paths traversing a collection constraint
 - That reducers use valid values (`:SUM`, `:AVG`, `:COUNT`, etc.)
 
-### 🌐 Layer 3: Projection Exposure (FilterQL)
+### 🌐 Layer 3: Projection Exposure
 
 The processor fully supports the unified **Exposure Layer v3.0.0**:
 
