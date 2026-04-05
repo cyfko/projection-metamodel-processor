@@ -38,7 +38,7 @@ Add the following dependency to your `pom.xml`:
                     <path>
                         <groupId>io.github.cyfko</groupId>
                         <artifactId>jpa-metamodel-processor</artifactId>
-                        <version>1.0.4</version>
+                        <version>1.0.5</version>
                     </path>
                 </annotationProcessorPaths>
             </configuration>
@@ -154,21 +154,29 @@ public class Computations {
 
 ### Collection Reducer Support
 
-When a dependency traverses a collection, a reducer is mandatory:
+When a dependency traverses a collection, an inline `:REDUCER` suffix is required:
 
 ```java
 @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
 public interface CompanyDTO {
-    // Collection dependency → reducer required
-    @Computed(dependsOn = {"orders.amount"}, reducers = {"SUM"})
+    // Collection dependency → reducer required via :SUFFIX format
+    @Computed(dependsOn = {"orders.amount:SUM"})
     BigDecimal getTotalRevenue();
 }
 ```
 
 The processor validates:
-- That a reducer is provided for each collection dependency
-- That the number of reducers matches the number of collection dependencies
-- That reducers use valid values (`SUM`, `AVG`, `COUNT`, etc.)
+- That a reducer is defined correctly via the `path:REDUCER` syntax
+- That the number of reducers matches the number of paths traversing a collection constraint
+- That reducers use valid values (`:SUM`, `:AVG`, `:COUNT`, etc.)
+
+### 🌐 Layer 3: Projection Exposure (FilterQL)
+
+The processor fully supports the unified **Exposure Layer v3.0.0**:
+
+- **Scalar Variables**: Opt-in queryability via `@ExposedAs("SCREAMING_SNAKE")` safely restricting lookup dictionaries.
+- **Deep Composition**: Through `@Projected(as = "PREFIX")`, child representations logically join contexts creating seamless paths without redundancy.
+- **Cycle Break & Depth DFS**: Bi-directional resolution cycles stop gracefully at compile-time forcing explicitness and preventing runaway dependencies.
 
 ## 📁 Generated Files
 
@@ -249,8 +257,10 @@ public class UserComputations {
 
 // 3. DTO Projection
 @Projection(from = User.class, providers = @Provider(UserComputations.class))
+@Exposure(value = "users", namespace = "api") // Enables Layer 3 mapping integration
 public interface UserDTO {
-    @Projected(from = "firstName")
+    
+    @ExposedAs(value = "FIRST_NAME", operators = {"EQ", "IN"})
     String getFirstName();
     
     @Projected(from = "address.city")
@@ -262,7 +272,7 @@ public interface UserDTO {
     @Computed(dependsOn = {"birthDate"})
     Integer getAge();
     
-    @Computed(dependsOn = {"orders.total"}, reducers = {"SUM"})
+    @Computed(dependsOn = {"orders.total:SUM"})
     BigDecimal getTotalSpent();
 }
 ```
@@ -336,7 +346,7 @@ When a dependency traverses a collection, a reducer is mandatory:
 private BigDecimal total;
 
 // ✅ CORRECT
-@Computed(dependsOn = {"orders.amount"}, reducers = {"SUM"})
+@Computed(dependsOn = {"orders.amount:SUM"})
 private BigDecimal total;
 ```
 

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.0.5] — 2026-04-05
+
+### Features
+- Migrated codebase to fully support **Projection Specification 3.0.0** (Exposure Layer & Composed Criteria).
+- Implemented full support for the `@ExposedAs` annotation on scalar properties, with strict `SCREAMING_SNAKE_CASE` enforcement.
+- Integrated the `@Exposure` annotation at class-level to define root namespace and strategy configurations cleanly.
+- Implemented recursive constraint checking (DFS) for inheriting composed criteria across sub-projections using `@Projected(as = "PREFIX", cycleBreak = true)`.
+- Introduced compile-time collision checks for duplicate criteria prefixes and cyclic composition dependencies (unless `cycleBreak` is utilized).
+- Generates updated 6-parameter `ProjectionMetadata` configurations integrating `ExposedCriterion` and `ExposureMetadata`.
+
+### Refactoring
+- Deprecated and removed the legacy `reducers = {"SUM"}` property parsing in favor of the new inline v3.0.0 reducer syntax (`"path:REDUCER"`).
+
 ## [1.1.0] — since v1.0.3
 
 ### Features
