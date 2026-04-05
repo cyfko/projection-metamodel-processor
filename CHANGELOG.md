@@ -17,7 +17,7 @@ All notable changes to this project will be documented in this file.
 ### Refactoring
 - Deprecated and removed the legacy `reducers = {"SUM"}` property parsing in favor of the new inline v3.0.0 reducer syntax (`"path:REDUCER"`).
 
-## [1.1.0] — since v1.0.3
+## [1.0.4] — since v1.0.4
 
 ### Features
 - Added support for allowing a computing method of a computed field to have parameter mismatches if compatible 
