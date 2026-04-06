@@ -1253,7 +1253,7 @@ class ComputationProviderTest {
                                                 "fullName",
                                                 new String[]{"firstName", "lastName"},
                                                 new ComputedField.ReducerMapping[]{},
-                                                new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                new MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
                                                 null
                                             )
                         """);
@@ -1318,8 +1318,8 @@ class ComputationProviderTest {
                                                                "fullName",
                                                                new String[]{"firstName", "lastName"},
                                                                new ComputedField.ReducerMapping[]{},
-                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
-                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"stringify")
+                                                               new MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                               new MethodReference(io.github.cyfko.example.UserComputations.class,"stringify")
                                                            )
                                        """);
     }
@@ -1385,8 +1385,8 @@ class ComputationProviderTest {
                                                                "fullName",
                                                                new String[]{"firstName", "lastName"},
                                                                new ComputedField.ReducerMapping[]{},
-                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
-                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserDTO.class,"toUppercaseString")
+                                                               new MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                               new MethodReference(io.github.cyfko.example.UserDTO.class,"toUppercaseString")
                                                            )
                                        """);
     }
@@ -1460,8 +1460,8 @@ class ComputationProviderTest {
                                                                "fullName",
                                                                new String[]{"firstName", "lastName"},
                                                                new ComputedField.ReducerMapping[]{},
-                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
-                                                               new ComputedField.MethodReference(io.github.cyfko.example.StringUtils.class,"uppercaseString")
+                                                               new MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                               new MethodReference(io.github.cyfko.example.StringUtils.class,"uppercaseString")
                                                            )
                                        """);
     }

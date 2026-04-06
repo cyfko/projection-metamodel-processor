@@ -1,5 +1,6 @@
 package io.github.cyfko.jpametamodel.processor;
 
+import io.github.cyfko.jpametamodel.providers.MethodSignatureValidator;
 import io.github.cyfko.jpametamodel.providers.ProjectionRegistryProvider;
 import io.github.cyfko.projection.Computed;
 import io.github.cyfko.projection.ExposedAs;
@@ -38,6 +39,7 @@ public class ProjectionProcessor {
     private final Types typeUtils;
 
     private final EntityProcessor entityProcessor;
+    private final MethodSignatureValidator signatureValidator; // nullable — loaded via SPI
     private final Map<String, SimpleProjectionMetadata> projectionRegistry = new LinkedHashMap<>();
     private final List<TypeElement> referencedProjections = new ArrayList<>();
 
@@ -47,6 +49,7 @@ public class ProjectionProcessor {
         this.elementUtils = processingEnv.getElementUtils();
         this.entityProcessor = entityProcessor;
         this.typeUtils = processingEnv.getTypeUtils();
+        this.signatureValidator = ServiceLoader.load(MethodSignatureValidator.class, ProjectionProcessor.class.getClassLoader()).findFirst().orElse(null);
     }
 
     /**
@@ -340,7 +343,36 @@ public class ProjectionProcessor {
                     String expValue = expFields.containsKey("value") ? expFields.get("value").toString() : "";
                     String expNamespace = expFields.containsKey("namespace") ? expFields.get("namespace").toString() : "";
                     String expStrategy = expFields.containsKey("strategy") ? expFields.get("strategy").toString() : "WINDOWED";
-                    exposureHolder[0] = new SimpleExposureMetadata(expValue, expNamespace, expStrategy);
+
+                    // === Pipes ===
+                    List<SimpleMethodReference> pipes = new ArrayList<>();
+                    if (expFields.containsKey("pipes")) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> pipesList = (List<Map<String, Object>>) expFields.get("pipes");
+                        for (Map<String, Object> pipe : pipesList) {
+                            String pipeType = pipe.containsKey("type") ? pipe.get("type").toString() : null;
+                            String pipeValue = pipe.containsKey("value") ? pipe.get("value").toString() : "";
+                            SimpleMethodReference ref = resolveMethodReference(pipeType, pipeValue, dtoClass, computers, "@Exposure pipe", messager);
+                            if (ref != null) pipes.add(ref);
+                        }
+                    }
+
+                    // === Handler ===
+                    SimpleMethodReference handler = null;
+                    if (expFields.containsKey("handler")) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> h = (Map<String, Object>) expFields.get("handler");
+                        String hType = h.containsKey("type") ? h.get("type").toString() : null;
+                        String hValue = h.containsKey("value") ? h.get("value").toString() : "";
+                        String normType = hType;
+                        if ("void".equals(normType) || "java.lang.Void".equals(normType)) normType = null;
+                        // @Method() par défaut (both null) = pas de handler
+                        if (normType != null || (hValue != null && !hValue.isBlank())) {
+                            handler = resolveMethodReference(hType, hValue, dtoClass, computers, "@Exposure handler", messager);
+                        }
+                    }
+
+                    exposureHolder[0] = new SimpleExposureMetadata(expValue, expNamespace, expStrategy, pipes, handler);
                 },
                 null);
 
@@ -513,34 +545,102 @@ public class ProjectionProcessor {
     }
 
     /**
-     * Validates that compute and transformation methods exist for the given computed field.
-     * <p>
-     * Validation covers two stages:
-     * </p>
-     * <ol>
-     *   <li><b>computedBy method:</b>
-     *     <ul>
-     *       <li>Method name convention: {@code to[FieldName]} or explicit</li>
-     *       <li>Parameter count matches dependencies</li>
-     *       <li>Parameter types match dependency types</li>
-     *       <li>Return type matches field type OR then parameter type (if then is specified)</li>
-     *     </ul>
-     *   </li>
-     *   <li><b>then method (if specified):</b>
-     *     <ul>
-     *       <li>Method name must be explicit (no convention)</li>
-     *       <li>Must be static (pure function)</li>
-     *       <li>Must accept exactly one parameter (computedBy return type)</li>
-     *       <li>Return type must match field type</li>
-     *     </ul>
-     *   </li>
-     * </ol>
+     * Resolves a {@code @Method} reference following the spec's standard search order:
+     * <ul>
+     *   <li>{@code type} specified → look in that class only</li>
+     *   <li>{@code type} absent → DTO static methods → declared {@code @Provider} classes</li>
+     * </ul>
      *
-     * @param field             the computed field descriptor
-     * @param informativeMethod the @Computed annotated method
-     * @param providers         the list of available computation providers
-     * @param depsToTypes mapping from dependency paths to their types
-     * @return ValidationResult containing resolved methods or error message
+     * <p>Unlike {@code @Computed.computedBy}, the {@code to[FieldName]} convention does not
+     * apply to pipes and handler — the method name is always required.</p>
+     *
+     * @param rawType   the {@code type} attribute from {@code @Method}, or {@code null}
+     * @param rawValue  the {@code value} attribute from {@code @Method}
+     * @param dtoClass  the DTO type element (for error messages and DTO-static search)
+     * @param providers the declared {@code @Provider} classes
+     * @param context   human-readable context for error messages (e.g. {@code "@Exposure pipe"})
+     * @param messager  the messager for emitting diagnostics
+     * @return the resolved method reference, or {@code null} if resolution fails (error emitted)
+     */
+    private SimpleMethodReference resolveMethodReference(String rawType, String rawValue, TypeElement dtoClass, List<SimpleComputationProvider> providers, String context, Messager messager) {
+        String type = rawType;
+        if ("void".equals(type) || "java.lang.Void".equals(type)) type = null;
+        String methodName = (rawValue != null && !rawValue.isBlank()) ? rawValue : null;
+
+        // Method name is ALWAYS required for pipes/handler (no to[FieldName] convention)
+        if (methodName == null) {
+            if (type != null) {
+                messager.printError(String.format("%s on %s: method name is required when 'type' is specified. Unlike @Computed.computedBy, the to[FieldName] convention does not apply — specify @Method(type = %s, value = \"methodName\").", context, dtoClass.getSimpleName(), type), dtoClass);
+            } else {
+                messager.printError(String.format("%s on %s: method name is required. Unlike @Computed.computedBy, the to[FieldName] convention does not apply — each pipe/handler must reference an explicit method.", context, dtoClass.getSimpleName()), dtoClass);
+            }
+            return null;
+        }
+
+        // Build search targets
+        List<TypeElement> searchTargets = new ArrayList<>();
+        if (type != null) {
+            TypeElement targetType = elementUtils.getTypeElement(type);
+            if (targetType == null) {
+                messager.printError(String.format("%s on %s: class '%s' cannot be resolved. Verify the fully qualified name and ensure the class is on the compilation classpath.", context, dtoClass.getSimpleName(), type), dtoClass);
+                return null;
+            }
+            searchTargets.add(targetType);
+        } else {
+            searchTargets.add(dtoClass);
+            for (SimpleComputationProvider p : providers) {
+                TypeElement pe = elementUtils.getTypeElement(p.className());
+                if (pe != null) searchTargets.add(pe);
+            }
+        }
+
+        // Search for the method
+        for (TypeElement target : searchTargets) {
+            for (Element enclosed : target.getEnclosedElements()) {
+                if (enclosed.getKind() != ElementKind.METHOD) continue;
+                if (methodName.equals(enclosed.getSimpleName().toString())) {
+                    // Found — SPI validation if available
+                    if (signatureValidator != null) {
+                        String error = context.contains("pipe")
+                            ? signatureValidator.validatePipeMethod(target, methodName, elementUtils, typeUtils)
+                            : signatureValidator.validateHandlerMethod(target, methodName, elementUtils, typeUtils);
+                        if (error != null) {
+                            messager.printError(error, dtoClass);
+                            return null;
+                        }
+                    }
+                    return new SimpleMethodReference(target.getQualifiedName().toString(), methodName);
+                }
+            }
+        }
+
+        // Method not found — rich error with search context
+        if (type != null) {
+            List<String> available = new ArrayList<>();
+            TypeElement targetType = elementUtils.getTypeElement(type);
+            if (targetType != null) {
+                for (Element enclosed : targetType.getEnclosedElements()) {
+                    if (enclosed.getKind() == ElementKind.METHOD) {
+                        available.add(enclosed.getSimpleName().toString());
+                    }
+                }
+            }
+            messager.printError(String.format("%s on %s: no method '%s' found in %s. Available methods: %s.", context, dtoClass.getSimpleName(), methodName, type, available), dtoClass);
+        } else {
+            List<String> searchOrder = new ArrayList<>();
+            searchOrder.add(dtoClass.getSimpleName().toString() + " (static methods)");
+            for (SimpleComputationProvider p : providers) {
+                searchOrder.add(p.className());
+            }
+            messager.printError(String.format("%s on %s: no method '%s' found. Search order: %s. Ensure the method exists in one of these classes, or specify @Method(type = ...) to target a specific class.", context, dtoClass.getSimpleName(), methodName, String.join(" → ", searchOrder)), dtoClass);
+        }
+
+        return null;
+    }
+
+    /**
+     * Validates the compute method resolution and optional transformation chain
+     * for a {@code @Computed} field.
      */
     private SimpleComputedField validateComputeMethodWithTransformation(
             SimpleComputedField field,
@@ -1203,9 +1303,20 @@ public class ProjectionProcessor {
      * Formats an ExposureMetadata for code generation.
      */
     private String formatExposureMetadata(SimpleExposureMetadata e) {
-        return String.format(
-                "                new ExposureMetadata(\"%s\", \"%s\", \"%s\")",
-                e.value(), e.namespace(), e.strategy());
+        StringBuilder pipesStr = new StringBuilder("new MethodReference[]{");
+        for (int i = 0; i < e.pipes().size(); i++) {
+            var p = e.pipes().get(i);
+            if (i > 0) pipesStr.append(", ");
+            pipesStr.append(String.format("new MethodReference(%s.class, \"%s\")", p.type(), p.value()));
+        }
+        pipesStr.append("}");
+
+        String handlerStr = "null";
+        if (e.handler() != null) {
+            handlerStr = String.format("new MethodReference(%s.class, \"%s\")", e.handler().type(), e.handler().value());
+        }
+
+        return String.format("                new ExposureMetadata(\"%s\", \"%s\", \"%s\", %s, %s)", e.value(), e.namespace(), e.strategy(), pipesStr, handlerStr);
     }
 
     /**
@@ -1231,12 +1342,12 @@ public class ProjectionProcessor {
                     f.reducerIndices()[i], f.reducerNames()[i]));
         }
 
-        String computeRef = String.format("new ComputedField.MethodReference(%s.class,\"%s\")",
+        String computeRef = String.format("new MethodReference(%s.class,\"%s\")",
                 f.computedByClass() == null ? dtoFqcn : f.computedByClass,
                 f.computedByMethod() == null ? "to" + StringUtils.capitalize(f.dtoField) : f.computedByMethod()
         );
 
-        String thenRef = f.thenMethod() != null ? String.format("new ComputedField.MethodReference(%s.class,\"%s\")",
+        String thenRef = f.thenMethod() != null ? String.format("new MethodReference(%s.class,\"%s\")",
                 f.thenClass() == null ? dtoFqcn : f.thenClass,
                 f.thenMethod()) : null;
 
@@ -1366,10 +1477,14 @@ public class ProjectionProcessor {
             boolean composed
     ) { }
 
+    record SimpleMethodReference(String type, String value) { }
+
     record SimpleExposureMetadata(
             String value,
             String namespace,
-            String strategy
+            String strategy,
+            List<SimpleMethodReference> pipes,
+            SimpleMethodReference handler
     ) { }
 
     // ========================= COMPOSED CRITERION INHERITANCE =========================

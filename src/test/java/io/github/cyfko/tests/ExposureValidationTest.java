@@ -150,7 +150,7 @@ class ExposureValidationTest {
                 "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl").orElseThrow();
         String generatedCode = generatedFile.getCharContent(true).toString();
 
-        assertThat(generatedCode).contains("new ExposureMetadata(\"localities\", \"core\", \"WINDOWED\")");
+        assertThat(generatedCode).contains("new ExposureMetadata(\"localities\", \"core\", \"WINDOWED\", new MethodReference[]{}, null)");
     }
 
     @Test
