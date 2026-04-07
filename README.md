@@ -113,14 +113,14 @@ public class UserComputations {
 }
 ```
 
-#### 2. Explicit Reference via @MethodReference
+#### 2. Explicit Reference via @Method
 
 ```java
 @Projection(from = User.class)
 public interface UserDTO {
     @Computed(
         dependsOn = {"firstName", "lastName"}, 
-        computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames")
+        computedBy = @Method(type = ExternalComputer.class, value = "joinNames")
     )
     String getDisplayName();
 }
@@ -290,7 +290,7 @@ List<String> requiredFields = ProjectionRegistry.getRequiredEntityFields(UserDTO
 
 - **Visibility**: Entity classes must be public
 - **Transient fields**: `@Transient` fields are excluded from analysis
-- **Naming convention**: Providers must follow the `get[FieldName]` convention (except with `@MethodReference`)
+- **Naming convention**: Providers must follow the `get[FieldName]` convention (except with `@Method`)
 - **Processing scope**: Only entities referenced in the `from` attribute of `@Projection` are analyzed
 
 ## 🔧 Troubleshooting
@@ -319,10 +319,10 @@ See the JPMS section in the `jpa-projection-metamodel` README.
 ### "Method not found for computed field" Error
 
 **Check that:**
-- The method name follows `get[FieldName]` OR is explicitly referenced via `@MethodReference`
+- The method name follows `get[FieldName]` OR is explicitly referenced via `@Method`
 - The signature matches: the number and types of parameters exactly match `dependsOn`
 - The provider class is accessible (public and in the compilation classpath)
-- If you use `@MethodReference`, verify that `type` and `method` are correct
+- If you use `@Method`, verify that `type` and `value` are correct
 
 **Common error example:**
 ```java
