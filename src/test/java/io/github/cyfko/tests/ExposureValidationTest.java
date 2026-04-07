@@ -740,4 +740,35 @@ class ExposureValidationTest {
         assertThat(compilation).hadErrorContaining("no method 'unknownHandler' found. Search order: ProductDTO (static methods) → io.github.cyfko.example.MyProvider")
                 .inFile(dto);
     }
+
+    @Test
+    void testExposurePipesAndHandler_rejectedBySpiValidator_fails() {
+        JavaFileObject dto = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.ProductDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(from = Locality.class)
+                        @Exposure(
+                            value = "products",
+                            pipes = {
+                                @Method("badPipeMethod")
+                            }
+                        )
+                        public interface ProductDTO {
+                            // Method exists, normally would pass standard validation,
+                            // but the MockMethodValidator SPI will intercept and fail it.
+                            static void badPipeMethod() {}
+                        }
+                        """);
+
+        Compilation compilation = Compiler.javac()
+                .withProcessors(new MetamodelProcessor())
+                .compile(createLocalityEntity(), dto);
+
+        assertThat(compilation).hadErrorContaining("This pipe method is universally rejected by the Mock SPI validator.")
+                .inFile(dto);
+    }
 }
+
